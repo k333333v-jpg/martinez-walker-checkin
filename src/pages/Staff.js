@@ -12,7 +12,7 @@ const Staff = () => {
     getServedCustomers,
     getPreparerList
   } = useQueue();
-  const [showServed, setShowServed] = useState(false);
+  // const [showServed, setShowServed] = useState(false); // Removed unused state
   const [syncing, setSyncing] = useState({});
   const [autoRefresh, setAutoRefresh] = useState(true);
 

@@ -155,7 +155,7 @@ export function QueueProvider({ children }) {
     } catch (error) {
       console.error('❌ QueueProvider: Failed to save state to localStorage:', error);
     }
-  }, [state.customers, state.preparers, state.nextTicketNumber]);
+  }, [state]);
 
   // Listen for localStorage changes from other tabs
   useEffect(() => {
@@ -180,7 +180,7 @@ export function QueueProvider({ children }) {
 
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
+  }, [dispatch]);
 
   const addCustomer = (customerData) => {
     console.log('🏪 QueueContext: Adding customer to state:', customerData);

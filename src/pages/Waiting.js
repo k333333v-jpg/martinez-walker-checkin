@@ -3,7 +3,7 @@ import { useQueue } from '../context/QueueContext';
 import Header from '../components/Header';
 
 const Waiting = () => {
-  const { preparers, getWaitingCustomers, getCurrentlyServing } = useQueue();
+  const { preparers, getWaitingCustomers } = useQueue();
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
@@ -19,7 +19,7 @@ const Waiting = () => {
   
   console.log('⏳ Waiting Room: Customers in queue:', waitingCustomers.length, waitingCustomers.map(c => c.name));
   console.log('👥 Waiting Room: Currently serving:', Object.values(preparers).filter(c => c !== null).map(c => c?.name));
-  const currentlyServing = getCurrentlyServing();
+  // const currentlyServing = getCurrentlyServing(); // Removed unused variable
 
   return (
     <div className="page waiting-room">
