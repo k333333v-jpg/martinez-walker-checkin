@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Single Tab Test - Martinez & Walker</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .step { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .complete { background: #e8f5e8; border-color: green; }
+        .pending { background: #fff3cd; border-color: orange; }
+        iframe { width: 100%; height: 600px; border: 1px solid #ccc; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>Single Tab Test for Martinez & Walker Queue System</h1>
+    
+    <div class="step pending">
+        <h3>Step 1: Start on Check-In Page</h3>
+        <p>Fill out the form with test data and submit it. Watch the console for debug logs.</p>
+        <iframe src="http://localhost:3000" id="checkInFrame"></iframe>
+    </div>
+    
+    <div class="step pending">
+        <h3>Step 2: Navigate to Waiting Room (Same Tab)</h3>
+        <p>Click this link to navigate to waiting room in the SAME browser tab:</p>
+        <p><a href="http://localhost:3000/waiting" target="_blank">→ Waiting Room Display</a></p>
+        <p>Expected: Should see the submitted customer in queue</p>
+    </div>
+    
+    <div class="step pending">
+        <h3>Step 3: Navigate to Staff Dashboard (Same Tab)</h3>
+        <p>Click this link to navigate to staff dashboard in the SAME browser tab:</p>
+        <p><a href="http://localhost:3000/staff" target="_blank">→ Staff Dashboard</a></p>
+        <p>Expected: Should see the submitted customer in waiting list</p>
+    </div>
+    
+    <div class="step pending">
+        <h3>Step 4: Assign Customer to Preparer</h3>
+        <p>Click "Serve Next" for any preparer</p>
+        <p>Expected: Customer moves from waiting to serving</p>
+    </div>
+    
+    <div class="step pending">
+        <h3>Step 5: Check Waiting Room Again</h3>
+        <p>Navigate back to waiting room</p>
+        <p>Expected: Customer should appear in "NOW SERVING" section</p>
+    </div>
+    
+    <script>
+        console.log('🧪 Single Tab Test: Ready to test Martinez & Walker data flow in single browser tab');
+        
+        // Monitor console for our debug messages
+        const originalLog = console.log;
+        console.log = function(...args) {
+            if (args[0] && typeof args[0] === 'string' && 
+                (args[0].includes('QueueContext') || 
+                 args[0].includes('CheckIn') || 
+                 args[0].includes('Waiting Room') || 
+                 args[0].includes('Staff Dashboard'))) {
+                document.body.innerHTML += '<div style="background: #f0f0f0; padding: 5px; margin: 2px; font-size: 12px; border-left: 3px solid blue;">' + args.join(' ') + '</div>';
+            }
+            originalLog.apply(console, arguments);
+        };
+    </script>
+</body>
+</html>

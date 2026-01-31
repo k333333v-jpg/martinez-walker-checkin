@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Martinez & Walker - Data Flow Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <h1>Martinez & Walker Queue System - Data Flow Test</h1>
+    
+    <div class="test-section">
+        <h2>🎫 Test Instructions</h2>
+        <p>1. Open the application in multiple tabs:</p>
+        <ul>
+            <li><a href="http://localhost:3000" target="_blank">Check-In Page</a></li>
+            <li><a href="http://localhost:3000/waiting" target="_blank">Waiting Room Display</a></li>
+            <li><a href="http://localhost:3000/staff" target="_blank">Staff Dashboard</a></li>
+        </ul>
+        
+        <p>2. Submit a test client on the Check-In page with these details:</p>
+        <ul>
+            <li><strong>Name:</strong> John Test</li>
+            <li><strong>Phone:</strong> (555) 123-4567</li>
+            <li><strong>Email:</strong> john@test.com</li>
+            <li><strong>Filing Status:</strong> Individual</li>
+        </ul>
+        
+        <p>3. Check that the client appears on:</p>
+        <ul>
+            <li>✅ Waiting Room Display (in "NEXT IN QUEUE" section)</li>
+            <li>✅ Staff Dashboard (in next customers list)</li>
+        </ul>
+        
+        <p>4. On Staff Dashboard, click "Serve Next" for any preparer</p>
+        
+        <p>5. Verify the client moves to "NOW SERVING" on Waiting Room Display</p>
+    </div>
+    
+    <div class="test-section">
+        <h2>🔍 Debug Console</h2>
+        <p>Open browser developer console (F12) to see debug logs:</p>
+        <ul>
+            <li>🎫 CheckIn: Form submission logs</li>
+            <li>🏪 QueueContext: State management logs</li>
+            <li>⏳ Waiting Room: Display update logs</li>
+            <li>👩‍💼 Staff Dashboard: Queue management logs</li>
+            <li>📊 Google Sheets: Sync attempt logs</li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h2>⚡ Expected Behavior</h2>
+        <div class="success">
+            <p><strong>✅ Working Data Flow:</strong></p>
+            <ul>
+                <li>Client submits form → appears in queue within seconds</li>
+                <li>Both Waiting Room and Staff Dashboard update automatically</li>
+                <li>Auto-refresh every 3 seconds keeps displays in sync</li>
+                <li>Console logs show successful state updates</li>
+                <li>Google Sheets sync attempts are logged</li>
+            </ul>
+        </div>
+        
+        <div class="error">
+            <p><strong>❌ Issues to Watch For:</strong></p>
+            <ul>
+                <li>Client doesn't appear in queue after submission</li>
+                <li>Data not syncing between pages</li>
+                <li>Console errors about undefined functions</li>
+                <li>Auto-refresh not working</li>
+                <li>Preparer assignment failing</li>
+            </ul>
+        </div>
+    </div>
+    
+    <script>
+        console.log('🧪 Test page loaded. Ready to test Martinez & Walker data flow.');
+        
+        // Auto-refresh this page every 10 seconds to stay updated
+        setTimeout(() => {
+            location.reload();
+        }, 10000);
+    </script>
+</body>
+</html>
