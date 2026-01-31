@@ -1,24 +1,30 @@
 // Google Sheets Integration for Martinez & Walker Queue System
+import { syncToClientDatabase, syncToPreparerLog as realSyncToPreparerLog } from './googleSheetsAPI.js';
 
 // Sheet 1: Client Database
 export const syncToGoogleSheets = async (customerData) => {
   try {
-    // Log customer data for now (replace with actual Google Sheets API call)
-    console.log('📊 Sheet 1 - Client Database:', {
-      timestamp: new Date().toISOString(),
-      ticketNumber: customerData.ticketNumber,
-      name: customerData.name,
-      phone: customerData.phone,
-      email: customerData.email,
-      filingStatus: customerData.filingStatus,
-      checkedInAt: customerData.checkedInAt,
-    });
+    // Check if we have environment variables for real Google Sheets API
+    if (process.env.REACT_APP_GOOGLE_SPREADSHEET_ID && process.env.GOOGLE_CLIENT_EMAIL) {
+      console.log('📊 Using real Google Sheets API for Client Database');
+      return await syncToClientDatabase(customerData);
+    } else {
+      // Fallback to console logging for development
+      console.log('📊 Sheet 1 - Client Database (Console Mode):', {
+        timestamp: new Date().toISOString(),
+        ticketNumber: customerData.ticketNumber,
+        name: customerData.name,
+        phone: customerData.phone,
+        email: customerData.email,
+        filingStatus: customerData.filingStatus,
+        checkedInAt: customerData.checkedInAt,
+      });
 
-    // Simulate API response
-    return {
-      success: true,
-      message: 'Customer data logged to Client Database (Sheet 1)'
-    };
+      return {
+        success: true,
+        message: 'Customer data logged to Client Database (Console Mode)'
+      };
+    }
   } catch (error) {
     console.error('Failed to sync to Client Database:', error);
     return {
@@ -32,19 +38,24 @@ export const syncToGoogleSheets = async (customerData) => {
 // Sheet 2: Preparer Log
 export const syncToPreparerLog = async (preparerLogData) => {
   try {
-    // Log preparer assignment data
-    console.log('📋 Sheet 2 - Preparer Log:', {
-      timestamp: preparerLogData.timestamp,
-      clientName: preparerLogData.clientName,
-      preparerName: preparerLogData.preparerName,
-      ticketNumber: preparerLogData.ticketNumber,
-    });
+    // Check if we have environment variables for real Google Sheets API
+    if (process.env.REACT_APP_GOOGLE_SPREADSHEET_ID && process.env.GOOGLE_CLIENT_EMAIL) {
+      console.log('📋 Using real Google Sheets API for Preparer Log');
+      return await realSyncToPreparerLog(preparerLogData);
+    } else {
+      // Fallback to console logging for development
+      console.log('📋 Sheet 2 - Preparer Log (Console Mode):', {
+        timestamp: preparerLogData.timestamp,
+        clientName: preparerLogData.clientName,
+        preparerName: preparerLogData.preparerName,
+        ticketNumber: preparerLogData.ticketNumber,
+      });
 
-    // Simulate API response
-    return {
-      success: true,
-      message: 'Preparer assignment logged to Preparer Log (Sheet 2)'
-    };
+      return {
+        success: true,
+        message: 'Preparer assignment logged to Preparer Log (Console Mode)'
+      };
+    }
   } catch (error) {
     console.error('Failed to sync to Preparer Log:', error);
     return {
