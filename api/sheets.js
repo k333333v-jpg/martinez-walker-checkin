@@ -43,7 +43,7 @@ async function initializeGoogleSheets() {
 }
 
 // Main Vercel function handler
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return res.status(200).json({ message: 'OK' });
@@ -60,11 +60,12 @@ export default async function handler(req, res) {
 
     console.log(`📡 API Request: ${method} /api/sheets?action=${action}`);
 
-    // Validate request method
-    if (method !== 'POST') {
+    // Validate request method based on action
+    if ((action === 'test' && method !== 'GET') || 
+        (action !== 'test' && method !== 'POST')) {
       return res.status(405).json({ 
         success: false, 
-        error: 'Method not allowed. Use POST.' 
+        error: `Method not allowed. Use ${action === 'test' ? 'GET' : 'POST'} for this action.` 
       });
     }
 
