@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import { syncToGoogleSheets, syncToPreparerLog } from '../utilities/googleSheets';
 
 const QueueContext = createContext();
 
@@ -182,7 +183,7 @@ export function QueueProvider({ children }) {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, [dispatch]);
 
-  const addCustomer = (customerData) => {
+  const addCustomer = async (customerData) => {
     console.log('🏪 QueueContext: Adding customer to state:', customerData);
     console.log('📊 QueueContext: Current state before add:', {
       totalCustomers: state.customers.length,
@@ -207,10 +208,45 @@ export function QueueProvider({ children }) {
     // Dispatch the complete customer object to reducer
     dispatch({ type: 'ADD_CUSTOMER', payload: newCustomer });
     
+    // Sync to Google Sheets (non-blocking)
+    syncToGoogleSheets({
+      ...newCustomer,
+      checkedInAt: newCustomer.timestamp.toISOString(),
+    }).then(result => {
+      if (result.success) {
+        console.log('📊 Google Sheets sync successful for customer:', newCustomer.ticketNumber);
+      } else {
+        console.warn('📊 Google Sheets sync failed:', result.message);
+      }
+    }).catch(error => {
+      console.error('📊 Google Sheets sync error:', error);
+    });
+    
     return newCustomer;
   };
 
-  const assignToPreparer = (preparerName) => {
+  const assignToPreparer = async (preparerName) => {
+    const waitingCustomers = state.customers.filter(c => !c.served && !c.preparer);
+    if (waitingCustomers.length === 0) return;
+
+    const nextCustomer = waitingCustomers[0];
+    
+    // Sync to Preparer Log in Google Sheets (non-blocking)
+    syncToPreparerLog({
+      timestamp: new Date().toISOString(),
+      clientName: nextCustomer.name,
+      preparerName: preparerName,
+      ticketNumber: nextCustomer.ticketNumber
+    }).then(result => {
+      if (result.success) {
+        console.log('📋 Preparer Log sync successful for assignment:', nextCustomer.ticketNumber, '→', preparerName);
+      } else {
+        console.warn('📋 Preparer Log sync failed:', result.message);
+      }
+    }).catch(error => {
+      console.error('📋 Preparer Log sync error:', error);
+    });
+    
     dispatch({ type: 'ASSIGN_TO_PREPARER', payload: { preparerName } });
   };
 

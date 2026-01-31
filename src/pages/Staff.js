@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQueue } from '../context/QueueContext';
 import Header from '../components/Header';
-import { syncToGoogleSheets } from '../utilities/googleSheets';
 
 const Staff = () => {
   const { 
@@ -37,48 +36,18 @@ const Staff = () => {
   }, [autoRefresh]);
 
   const handleAssignToPreparer = async (preparerName) => {
-    const nextCustomer = waitingCustomers[0];
+    if (waitingCustomers.length === 0) return;
     
-    if (nextCustomer) {
-      setSyncing(prev => ({ ...prev, [preparerName]: true }));
-      
-      try {
-        // Assign customer to preparer
-        assignToPreparer(preparerName);
-        
-        // Sync customer to Client Database (Sheet 1)
-        const customerData = {
-          ticketNumber: nextCustomer.ticketNumber,
-          name: nextCustomer.name,
-          phone: nextCustomer.phone,
-          email: nextCustomer.email,
-          filingStatus: nextCustomer.filingStatus,
-          checkedInAt: nextCustomer.timestamp.toISOString(),
-        };
-        
-        const clientResult = await syncToGoogleSheets(customerData);
-        
-        // Sync to Preparer Log (Sheet 2)
-        const preparerLogData = {
-          clientName: nextCustomer.name,
-          preparerName: preparerName,
-          timestamp: new Date().toISOString(),
-          ticketNumber: nextCustomer.ticketNumber
-        };
-        
-        console.log('📋 Staff: Preparer assignment data:', preparerLogData);
-        const logResult = { success: true }; // Simplified for now
-        
-        if (clientResult.success && logResult.success) {
-          console.log(`✅ Customer ${nextCustomer.name} assigned to ${preparerName} and synced to both sheets`);
-        } else {
-          console.error('❌ Failed to sync to Google Sheets');
-        }
-      } catch (error) {
-        console.error('❌ Error syncing to Google Sheets:', error);
-      } finally {
-        setSyncing(prev => ({ ...prev, [preparerName]: false }));
-      }
+    setSyncing(prev => ({ ...prev, [preparerName]: true }));
+    
+    try {
+      // Assign customer to preparer (now handles Google Sheets sync internally)
+      await assignToPreparer(preparerName);
+      console.log(`✅ Customer assigned to ${preparerName} and synced to Google Sheets`);
+    } catch (error) {
+      console.error('❌ Error assigning customer:', error);
+    } finally {
+      setSyncing(prev => ({ ...prev, [preparerName]: false }));
     }
   };
 

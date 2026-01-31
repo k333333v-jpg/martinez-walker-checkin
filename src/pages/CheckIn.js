@@ -45,22 +45,28 @@ const CheckIn = () => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     console.log('🎫 CheckIn: Submitting form data:', formData);
-    const newCustomer = addCustomer(formData);
-    console.log('✅ CheckIn: Customer added successfully:', newCustomer);
-    setTicket(newCustomer);
-    setShowConfirmation(true);
-    
-    // Reset form
-    setFormData({
-      name: '',
-      phone: '',
-      email: '',
-      filingStatus: 'Individual'
-    });
+    try {
+      const newCustomer = await addCustomer(formData);
+      console.log('✅ CheckIn: Customer added successfully:', newCustomer);
+      setTicket(newCustomer);
+      setShowConfirmation(true);
+      
+      // Reset form
+      setFormData({
+        name: '',
+        phone: '',
+        email: '',
+        filingStatus: 'Individual'
+      });
+    } catch (error) {
+      console.error('❌ CheckIn: Error adding customer:', error);
+      // Still proceed with showing confirmation since the customer was added to local state
+      // The Google Sheets sync will be handled in the background
+    }
   };
 
   const handleNewCheckIn = () => {

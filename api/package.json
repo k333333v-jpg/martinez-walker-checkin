@@ -1,0 +1,8 @@
+{
+  "name": "martinez-walker-api",
+  "version": "1.0.0",
+  "description": "Vercel serverless functions for Martinez & Walker Google Sheets integration",
+  "dependencies": {
+    "googleapis": "^132.0.0"
+  }
+}
