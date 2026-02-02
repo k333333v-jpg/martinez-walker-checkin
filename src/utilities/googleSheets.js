@@ -5,12 +5,12 @@ import { syncToClientDatabase, syncToPreparerLog as realSyncToPreparerLog } from
 // Sheet 1: Client Database
 export const syncToGoogleSheets = async (customerData) => {
   try {
-    // Check if we're in production environment (Vercel)
-    if (process.env.NODE_ENV === 'production' && process.env.REACT_APP_GOOGLE_SPREADSHEET_ID) {
-      console.log('📊 Using Vercel API for Google Sheets - Client Database');
+    // Check if we're in production environment (Vercel) - use Vercel API
+    if (process.env.NODE_ENV === 'production') {
+      console.log('📊 Using Vercel API for Google Sheets - Client Database (Production Mode)');
       return await syncCheckinToSheets(customerData);
     } 
-    // Check if we have local Google Sheets API setup
+    // Check if we have local Google Sheets API setup for development
     else if (process.env.REACT_APP_GOOGLE_SPREADSHEET_ID && process.env.GOOGLE_CLIENT_EMAIL) {
       console.log('📊 Using local Google Sheets API for Client Database');
       return await syncToClientDatabase(customerData);
@@ -45,12 +45,12 @@ export const syncToGoogleSheets = async (customerData) => {
 // Sheet 2: Preparer Log
 export const syncToPreparerLog = async (preparerLogData) => {
   try {
-    // Check if we're in production environment (Vercel)
-    if (process.env.NODE_ENV === 'production' && process.env.REACT_APP_GOOGLE_SPREADSHEET_ID) {
-      console.log('📋 Using Vercel API for Google Sheets - Preparer Log');
+    // Check if we're in production environment (Vercel) - use Vercel API
+    if (process.env.NODE_ENV === 'production') {
+      console.log('📋 Using Vercel API for Google Sheets - Preparer Log (Production Mode)');
       return await syncPreparerToSheets(preparerLogData);
     }
-    // Check if we have local Google Sheets API setup
+    // Check if we have local Google Sheets API setup for development
     else if (process.env.REACT_APP_GOOGLE_SPREADSHEET_ID && process.env.GOOGLE_CLIENT_EMAIL) {
       console.log('📋 Using local Google Sheets API for Preparer Log');
       return await realSyncToPreparerLog(preparerLogData);
