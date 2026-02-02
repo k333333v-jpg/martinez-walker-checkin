@@ -146,22 +146,18 @@ async function handleCheckinData(sheets, spreadsheetId, customerData, res) {
       }
     }
 
-    // Prepare row data for Client Database sheet
+    // Prepare row data for Client Database sheet (simplified format)
     const rowData = [
-      customerData.ticketNumber,           // A: Ticket Number
-      customerData.name,                   // B: Customer Name  
-      customerData.phone,                  // C: Phone Number
-      customerData.email,                  // D: Email Address
-      customerData.filingStatus,           // E: Filing Status
-      customerData.checkedInAt || new Date().toISOString(), // F: Check-in Time
-      customerData.servedAt || '',         // G: Served Time
-      new Date().toISOString()             // H: Sync Timestamp
+      customerData.name,                   // A: Name  
+      customerData.phone,                  // B: Phone
+      customerData.email,                  // C: Email
+      customerData.filingStatus            // D: Filing Status
     ];
 
     // Append data to Client Database sheet
     const response = await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: 'Client Database!A:H',
+      range: 'Client Database!A:D',
       valueInputOption: 'USER_ENTERED',
       resource: {
         values: [rowData]
@@ -192,25 +188,24 @@ async function handlePreparerData(sheets, spreadsheetId, preparerLogData, res) {
     console.log('📋 Processing preparer assignment for Google Sheets:', preparerLogData);
 
     // Validate required fields
-    const required = ['timestamp', 'clientName', 'preparerName', 'ticketNumber'];
+    const required = ['timestamp', 'clientName', 'preparerName'];
     for (const field of required) {
       if (!preparerLogData[field]) {
         throw new Error(`Missing required field: ${field}`);
       }
     }
 
-    // Prepare row data for Preparer Log sheet
+    // Prepare row data for Preparer Log sheet (simplified format)
     const rowData = [
-      preparerLogData.timestamp,           // A: Timestamp
-      preparerLogData.clientName,          // B: Client Name
-      preparerLogData.preparerName,        // C: Preparer Name
-      preparerLogData.ticketNumber         // D: Ticket Number
+      preparerLogData.clientName,          // A: Client Name
+      preparerLogData.preparerName,        // B: Preparer Name
+      preparerLogData.timestamp            // C: Timestamp
     ];
 
     // Append data to Preparer Log sheet
     const response = await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: 'Preparer Log!A:D',
+      range: 'Preparer Log!A:C',
       valueInputOption: 'USER_ENTERED',
       resource: {
         values: [rowData]
@@ -224,7 +219,7 @@ async function handlePreparerData(sheets, spreadsheetId, preparerLogData, res) {
       message: 'Preparer assignment synced to Google Sheets',
       data: {
         updatedCells: response.data.updates?.updatedCells || 0,
-        updatedRange: response.data.updates?.updatedRange || 'Preparer Log!A:D'
+        updatedRange: response.data.updates?.updatedRange || 'Preparer Log!A:C'
       },
       timestamp: new Date().toISOString()
     });
@@ -318,25 +313,21 @@ async function handleDebugInfo(sheets, spreadsheetId, res) {
       console.log('📊 Testing sheet read access...');
       const valuesResponse = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: 'Client Database!A1:H1'
+        range: 'Client Database!A1:D1'
       });
       
       // Test write access with a sample entry
       console.log('✍️ Testing sheet write access...');
       const testData = [
-        'DEBUG-TEST',
         'Debug Test User',
         '(555) DEBUG',
         'debug@test.com',
-        'Test',
-        new Date().toISOString(),
-        '',
-        new Date().toISOString()
+        'Test'
       ];
       
       const writeResponse = await sheets.spreadsheets.values.append({
         spreadsheetId,
-        range: 'Client Database!A:H',
+        range: 'Client Database!A:D',
         valueInputOption: 'USER_ENTERED',
         resource: {
           values: [testData]
@@ -347,7 +338,7 @@ async function handleDebugInfo(sheets, spreadsheetId, res) {
         success: true,
         message: 'Sheet read and write access successful',
         readTest: {
-          range: 'Client Database!A1:H1',
+          range: 'Client Database!A1:D1',
           values: valuesResponse.data.values || []
         },
         writeTest: {
