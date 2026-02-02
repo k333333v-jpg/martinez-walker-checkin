@@ -5,10 +5,18 @@ import { syncToClientDatabase, syncToPreparerLog as realSyncToPreparerLog } from
 // Sheet 1: Client Database
 export const syncToGoogleSheets = async (customerData) => {
   try {
+    console.log('🔍 DEBUG: Environment check:', {
+      NODE_ENV: process.env.NODE_ENV,
+      isProduction: process.env.NODE_ENV === 'production',
+      customerData: customerData
+    });
+    
     // Check if we're in production environment (Vercel) - use Vercel API
     if (process.env.NODE_ENV === 'production') {
       console.log('📊 Using Vercel API for Google Sheets - Client Database (Production Mode)');
-      return await syncCheckinToSheets(customerData);
+      const result = await syncCheckinToSheets(customerData);
+      console.log('📊 Vercel API Response:', result);
+      return result;
     } 
     // Check if we have local Google Sheets API setup for development
     else if (process.env.REACT_APP_GOOGLE_SPREADSHEET_ID && process.env.GOOGLE_CLIENT_EMAIL) {
@@ -45,10 +53,18 @@ export const syncToGoogleSheets = async (customerData) => {
 // Sheet 2: Preparer Log
 export const syncToPreparerLog = async (preparerLogData) => {
   try {
+    console.log('🔍 DEBUG: Preparer environment check:', {
+      NODE_ENV: process.env.NODE_ENV,
+      isProduction: process.env.NODE_ENV === 'production',
+      preparerLogData: preparerLogData
+    });
+    
     // Check if we're in production environment (Vercel) - use Vercel API
     if (process.env.NODE_ENV === 'production') {
       console.log('📋 Using Vercel API for Google Sheets - Preparer Log (Production Mode)');
-      return await syncPreparerToSheets(preparerLogData);
+      const result = await syncPreparerToSheets(preparerLogData);
+      console.log('📋 Vercel Preparer API Response:', result);
+      return result;
     }
     // Check if we have local Google Sheets API setup for development
     else if (process.env.REACT_APP_GOOGLE_SPREADSHEET_ID && process.env.GOOGLE_CLIENT_EMAIL) {
