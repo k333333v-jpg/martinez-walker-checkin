@@ -110,8 +110,8 @@ async function setupClientDatabaseSheet(sheets, spreadsheetId) {
   try {
     console.log('📊 Setting up Client Database sheet...');
     
-    // Add headers
-    const headers = ['Name', 'Phone', 'Email', 'Filing Status'];
+    // Add headers with timestamp first
+    const headers = ['Timestamp', 'Name', 'Phone', 'Email'];
     await sheets.spreadsheets.values.update({
       spreadsheetId,
       range: 'Client Database!A1:D1',
@@ -343,19 +343,20 @@ async function handleCheckinData(sheets, spreadsheetId, customerData, res) {
     console.log('📊 Processing check-in data for Google Sheets:', customerData);
 
     // Validate required fields
-    const required = ['ticketNumber', 'name', 'phone', 'email', 'filingStatus'];
+    const required = ['ticketNumber', 'name', 'phone', 'email'];
     for (const field of required) {
       if (!customerData[field]) {
         throw new Error(`Missing required field: ${field}`);
       }
     }
 
-    // Prepare row data for Client Database sheet (simplified format)
+    // Prepare row data for Client Database sheet with timestamp first
+    const checkinTimestamp = customerData.checkedInAt || new Date().toISOString();
     const rowData = [
-      customerData.name,                   // A: Name  
-      customerData.phone,                  // B: Phone
-      customerData.email,                  // C: Email
-      customerData.filingStatus            // D: Filing Status
+      checkinTimestamp,                    // A: Timestamp (for check-in order)
+      customerData.name,                   // B: Name  
+      customerData.phone,                  // C: Phone
+      customerData.email                   // D: Email
     ];
 
     // Append data to Client Database sheet (starts from row 2, after headers)
@@ -375,7 +376,7 @@ async function handleCheckinData(sheets, spreadsheetId, customerData, res) {
       message: 'Customer check-in data synced to Google Sheets',
       data: {
         updatedCells: response.data.updates?.updatedCells || 0,
-        updatedRange: response.data.updates?.updatedRange || 'Client Database!A:H'
+        updatedRange: response.data.updates?.updatedRange || 'Client Database!A:D'
       },
       timestamp: new Date().toISOString()
     });
