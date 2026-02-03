@@ -287,7 +287,7 @@ module.exports = async function handler(req, res) {
     console.log(`📡 API Request: ${method} /api/sheets?action=${action}`);
 
     // Validate request method based on action
-    const getActions = ['test', 'debug', 'initialize'];
+    const getActions = ['test', 'debug', 'initialize', 'update-headers'];
     const isGetAction = getActions.includes(action);
     
     if ((isGetAction && method !== 'GET') || 
@@ -323,10 +323,13 @@ module.exports = async function handler(req, res) {
       case 'initialize':
         return await handleInitializeSheets(sheets, spreadsheetId, res);
       
+      case 'update-headers':
+        return await handleUpdateHeaders(sheets, spreadsheetId, res);
+      
       default:
         return res.status(400).json({
           success: false,
-          error: 'Invalid action. Use: checkin, preparer, test, debug, or initialize'
+          error: 'Invalid action. Use: checkin, preparer, test, debug, initialize, or update-headers'
         });
     }
 
@@ -455,6 +458,59 @@ async function handleInitializeSheets(sheets, spreadsheetId, res) {
   } catch (error) {
     console.error('❌ Failed to initialize sheets:', error);
     throw new Error(`Sheet initialization failed: ${error.message}`);
+  }
+}
+
+// Handle direct header updates without clearing data
+async function handleUpdateHeaders(sheets, spreadsheetId, res) {
+  try {
+    console.log('🔧 Update headers request received');
+    
+    // Update Client Database headers directly
+    console.log('📊 Updating Client Database headers...');
+    const clientHeaders = ['Timestamp', 'Name', 'Phone', 'Email'];
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: 'Client Database!A1:D1',
+      valueInputOption: 'USER_ENTERED',
+      resource: {
+        values: [clientHeaders]
+      }
+    });
+    
+    // Format and freeze Client Database headers
+    await formatSheetHeaders(sheets, spreadsheetId, 'Client Database', 'A1:D1');
+    await freezeTopRow(sheets, spreadsheetId, 'Client Database');
+    
+    // Update Preparer Log headers directly (keep existing structure)
+    console.log('📋 Updating Preparer Log headers...');
+    const preparerHeaders = ['Client Name', 'Preparer Name', 'Timestamp'];
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: 'Preparer Log!A1:C1',
+      valueInputOption: 'USER_ENTERED',
+      resource: {
+        values: [preparerHeaders]
+      }
+    });
+    
+    // Format and freeze Preparer Log headers
+    await formatSheetHeaders(sheets, spreadsheetId, 'Preparer Log', 'A1:C1');
+    await freezeTopRow(sheets, spreadsheetId, 'Preparer Log');
+    
+    return res.status(200).json({
+      success: true,
+      message: 'Headers successfully updated with new structure',
+      data: {
+        clientDatabaseHeaders: clientHeaders,
+        preparerLogHeaders: preparerHeaders
+      },
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to update headers:', error);
+    throw new Error(`Header update failed: ${error.message}`);
   }
 }
 
