@@ -52,8 +52,13 @@ const Staff = () => {
   };
 
   const handleCompleteService = (preparerName) => {
-    completeService(preparerName);
+    completeService(preparerName, 'completed');
     console.log(`✅ Service completed for ${preparerName}`);
+  };
+
+  const handlePendingService = (preparerName) => {
+    completeService(preparerName, 'pending');
+    console.log(`⏸️ Service marked as pending for ${preparerName}`);
   };
 
   const formatTime = (date) => {
@@ -101,12 +106,20 @@ const Staff = () => {
                               <p className="timestamp">Started: {formatTime(currentCustomer.servedAt || currentCustomer.timestamp)}</p>
                             </div>
                           </div>
-                          <button 
-                            className="btn-secondary complete-btn"
-                            onClick={() => handleCompleteService(preparerName)}
-                          >
-                            Complete Service
-                          </button>
+                          <div className="service-actions">
+                            <button 
+                              className="btn-primary complete-btn"
+                              onClick={() => handleCompleteService(preparerName)}
+                            >
+                              ✅ Complete Service
+                            </button>
+                            <button 
+                              className="btn-secondary pending-btn"
+                              onClick={() => handlePendingService(preparerName)}
+                            >
+                              ⏸️ Mark Pending
+                            </button>
+                          </div>
                         </div>
                       ) : (
                         <div className="no-client">

@@ -140,11 +140,11 @@ async function setupPreparerLogSheet(sheets, spreadsheetId) {
   try {
     console.log('📋 Setting up Preparer Log sheet...');
     
-    // Add headers
-    const headers = ['Client Name', 'Preparer Name', 'Timestamp'];
+    // Add headers with status column
+    const headers = ['Client Name', 'Preparer Name', 'Timestamp', 'Status'];
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: 'Preparer Log!A1:C1',
+      range: 'Preparer Log!A1:D1',
       valueInputOption: 'USER_ENTERED',
       resource: {
         values: [headers]
@@ -152,7 +152,7 @@ async function setupPreparerLogSheet(sheets, spreadsheetId) {
     });
     
     // Format headers and freeze row
-    await formatSheetHeaders(sheets, spreadsheetId, 'Preparer Log', 'A1:C1');
+    await formatSheetHeaders(sheets, spreadsheetId, 'Preparer Log', 'A1:D1');
     await freezeTopRow(sheets, spreadsheetId, 'Preparer Log');
     
     console.log('✅ Preparer Log sheet setup complete');
@@ -192,7 +192,7 @@ async function formatSheetHeaders(sheets, spreadsheetId, sheetName, range) {
                 startRowIndex: 0,
                 endRowIndex: 1,
                 startColumnIndex: 0,
-                endColumnIndex: range === 'A1:C1' ? 3 : 4
+                endColumnIndex: 4
               },
               cell: {
                 userEnteredFormat: {
@@ -406,17 +406,22 @@ async function handlePreparerData(sheets, spreadsheetId, preparerLogData, res) {
       }
     }
 
-    // Prepare row data for Preparer Log sheet (simplified format)
+    // Format status with appropriate symbol
+    const status = preparerLogData.status || 'pending';
+    const statusSymbol = status === 'completed' ? '✅' : '❌';
+
+    // Prepare row data for Preparer Log sheet with status
     const rowData = [
       preparerLogData.clientName,          // A: Client Name
       preparerLogData.preparerName,        // B: Preparer Name
-      preparerLogData.timestamp            // C: Timestamp
+      preparerLogData.timestamp,           // C: Timestamp
+      statusSymbol                         // D: Status (✅ for completed, ❌ for pending)
     ];
 
     // Append data to Preparer Log sheet (starts from row 2, after headers)
     const response = await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: 'Preparer Log!A2:C',
+      range: 'Preparer Log!A2:D',
       valueInputOption: 'USER_ENTERED',
       resource: {
         values: [rowData]
@@ -430,7 +435,7 @@ async function handlePreparerData(sheets, spreadsheetId, preparerLogData, res) {
       message: 'Preparer assignment synced to Google Sheets',
       data: {
         updatedCells: response.data.updates?.updatedCells || 0,
-        updatedRange: response.data.updates?.updatedRange || 'Preparer Log!A:C'
+        updatedRange: response.data.updates?.updatedRange || 'Preparer Log!A:D'
       },
       timestamp: new Date().toISOString()
     });
@@ -482,12 +487,12 @@ async function handleUpdateHeaders(sheets, spreadsheetId, res) {
     await formatSheetHeaders(sheets, spreadsheetId, 'Client Database', 'A1:D1');
     await freezeTopRow(sheets, spreadsheetId, 'Client Database');
     
-    // Update Preparer Log headers directly (keep existing structure)
+    // Update Preparer Log headers directly with status column
     console.log('📋 Updating Preparer Log headers...');
-    const preparerHeaders = ['Client Name', 'Preparer Name', 'Timestamp'];
+    const preparerHeaders = ['Client Name', 'Preparer Name', 'Timestamp', 'Status'];
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: 'Preparer Log!A1:C1',
+      range: 'Preparer Log!A1:D1',
       valueInputOption: 'USER_ENTERED',
       resource: {
         values: [preparerHeaders]
@@ -495,7 +500,7 @@ async function handleUpdateHeaders(sheets, spreadsheetId, res) {
     });
     
     // Format and freeze Preparer Log headers
-    await formatSheetHeaders(sheets, spreadsheetId, 'Preparer Log', 'A1:C1');
+    await formatSheetHeaders(sheets, spreadsheetId, 'Preparer Log', 'A1:D1');
     await freezeTopRow(sheets, spreadsheetId, 'Preparer Log');
     
     return res.status(200).json({

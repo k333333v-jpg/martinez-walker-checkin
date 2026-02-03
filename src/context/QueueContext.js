@@ -95,12 +95,17 @@ function queueReducer(state, action) {
     }
 
     case 'COMPLETE_SERVICE': {
-      const { preparerName } = action.payload;
+      const { preparerName, status } = action.payload;
       const currentCustomer = state.preparers[preparerName];
       if (!currentCustomer) return state;
 
       const updatedCustomers = state.customers.map(c =>
-        c.id === currentCustomer.id ? { ...c, served: true } : c
+        c.id === currentCustomer.id ? { 
+          ...c, 
+          served: true, 
+          completionStatus: status,
+          completedAt: new Date()
+        } : c
       );
 
       const updatedPreparers = {
@@ -250,8 +255,28 @@ export function QueueProvider({ children }) {
     dispatch({ type: 'ASSIGN_TO_PREPARER', payload: { preparerName } });
   };
 
-  const completeService = (preparerName) => {
-    dispatch({ type: 'COMPLETE_SERVICE', payload: { preparerName } });
+  const completeService = async (preparerName, status = 'completed') => {
+    const currentCustomer = state.preparers[preparerName];
+    if (!currentCustomer) return;
+    
+    // Sync completion status to Preparer Log in Google Sheets
+    syncToPreparerLog({
+      timestamp: new Date().toISOString(),
+      clientName: currentCustomer.name,
+      preparerName: preparerName,
+      ticketNumber: currentCustomer.ticketNumber,
+      status: status
+    }).then(result => {
+      if (result.success) {
+        console.log(`📋 Preparer Log sync successful for ${status}:`, currentCustomer.ticketNumber, '→', preparerName);
+      } else {
+        console.warn('📋 Preparer Log sync failed:', result.message);
+      }
+    }).catch(error => {
+      console.error('📋 Preparer Log sync error:', error);
+    });
+    
+    dispatch({ type: 'COMPLETE_SERVICE', payload: { preparerName, status } });
   };
 
   const getEstimatedWaitTime = (position) => {
