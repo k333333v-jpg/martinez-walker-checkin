@@ -64,6 +64,207 @@ async function initializeGoogleSheets() {
   }
 }
 
+// Initialize sheets with proper headers and formatting
+async function initializeSheets(sheets, spreadsheetId) {
+  try {
+    console.log('🔧 Initializing sheets with headers and formatting...');
+    
+    // Clear both sheets completely first
+    await clearSheet(sheets, spreadsheetId, 'Client Database');
+    await clearSheet(sheets, spreadsheetId, 'Preparer Log');
+    
+    // Set up Client Database sheet
+    await setupClientDatabaseSheet(sheets, spreadsheetId);
+    
+    // Set up Preparer Log sheet
+    await setupPreparerLogSheet(sheets, spreadsheetId);
+    
+    console.log('✅ Sheets initialization complete');
+    return { success: true, message: 'Sheets initialized with headers and formatting' };
+  } catch (error) {
+    console.error('❌ Failed to initialize sheets:', error);
+    throw error;
+  }
+}
+
+// Clear a sheet completely
+async function clearSheet(sheets, spreadsheetId, sheetName) {
+  try {
+    console.log(`🧹 Clearing ${sheetName} sheet...`);
+    
+    // Clear all content in the sheet
+    await sheets.spreadsheets.values.clear({
+      spreadsheetId,
+      range: `${sheetName}!A:Z`
+    });
+    
+    console.log(`✅ ${sheetName} sheet cleared`);
+  } catch (error) {
+    console.error(`❌ Failed to clear ${sheetName} sheet:`, error);
+    throw error;
+  }
+}
+
+// Set up Client Database sheet with headers and formatting
+async function setupClientDatabaseSheet(sheets, spreadsheetId) {
+  try {
+    console.log('📊 Setting up Client Database sheet...');
+    
+    // Add headers
+    const headers = ['Name', 'Phone', 'Email', 'Filing Status'];
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: 'Client Database!A1:D1',
+      valueInputOption: 'USER_ENTERED',
+      resource: {
+        values: [headers]
+      }
+    });
+    
+    // Format headers and freeze row
+    await formatSheetHeaders(sheets, spreadsheetId, 'Client Database', 'A1:D1');
+    await freezeTopRow(sheets, spreadsheetId, 'Client Database');
+    
+    console.log('✅ Client Database sheet setup complete');
+  } catch (error) {
+    console.error('❌ Failed to setup Client Database sheet:', error);
+    throw error;
+  }
+}
+
+// Set up Preparer Log sheet with headers and formatting
+async function setupPreparerLogSheet(sheets, spreadsheetId) {
+  try {
+    console.log('📋 Setting up Preparer Log sheet...');
+    
+    // Add headers
+    const headers = ['Client Name', 'Preparer Name', 'Timestamp'];
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: 'Preparer Log!A1:C1',
+      valueInputOption: 'USER_ENTERED',
+      resource: {
+        values: [headers]
+      }
+    });
+    
+    // Format headers and freeze row
+    await formatSheetHeaders(sheets, spreadsheetId, 'Preparer Log', 'A1:C1');
+    await freezeTopRow(sheets, spreadsheetId, 'Preparer Log');
+    
+    console.log('✅ Preparer Log sheet setup complete');
+  } catch (error) {
+    console.error('❌ Failed to setup Preparer Log sheet:', error);
+    throw error;
+  }
+}
+
+// Format headers with bold text and background color
+async function formatSheetHeaders(sheets, spreadsheetId, sheetName, range) {
+  try {
+    console.log(`🎨 Formatting headers for ${sheetName}...`);
+    
+    // Get sheet ID
+    const sheetResponse = await sheets.spreadsheets.get({
+      spreadsheetId,
+      fields: 'sheets.properties'
+    });
+    
+    const sheet = sheetResponse.data.sheets.find(s => s.properties.title === sheetName);
+    if (!sheet) {
+      throw new Error(`Sheet "${sheetName}" not found`);
+    }
+    
+    const sheetId = sheet.properties.sheetId;
+    
+    // Format headers with bold text and blue background
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      resource: {
+        requests: [
+          {
+            repeatCell: {
+              range: {
+                sheetId: sheetId,
+                startRowIndex: 0,
+                endRowIndex: 1,
+                startColumnIndex: 0,
+                endColumnIndex: range === 'A1:C1' ? 3 : 4
+              },
+              cell: {
+                userEnteredFormat: {
+                  backgroundColor: {
+                    red: 0.8,
+                    green: 0.9,
+                    blue: 1.0
+                  },
+                  textFormat: {
+                    bold: true,
+                    fontSize: 12
+                  },
+                  horizontalAlignment: 'CENTER',
+                  verticalAlignment: 'MIDDLE'
+                }
+              },
+              fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)'
+            }
+          }
+        ]
+      }
+    });
+    
+    console.log(`✅ Headers formatted for ${sheetName}`);
+  } catch (error) {
+    console.error(`❌ Failed to format headers for ${sheetName}:`, error);
+    throw error;
+  }
+}
+
+// Freeze the top row
+async function freezeTopRow(sheets, spreadsheetId, sheetName) {
+  try {
+    console.log(`❄️ Freezing top row for ${sheetName}...`);
+    
+    // Get sheet ID
+    const sheetResponse = await sheets.spreadsheets.get({
+      spreadsheetId,
+      fields: 'sheets.properties'
+    });
+    
+    const sheet = sheetResponse.data.sheets.find(s => s.properties.title === sheetName);
+    if (!sheet) {
+      throw new Error(`Sheet "${sheetName}" not found`);
+    }
+    
+    const sheetId = sheet.properties.sheetId;
+    
+    // Freeze the first row
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      resource: {
+        requests: [
+          {
+            updateSheetProperties: {
+              properties: {
+                sheetId: sheetId,
+                gridProperties: {
+                  frozenRowCount: 1
+                }
+              },
+              fields: 'gridProperties.frozenRowCount'
+            }
+          }
+        ]
+      }
+    });
+    
+    console.log(`✅ Top row frozen for ${sheetName}`);
+  } catch (error) {
+    console.error(`❌ Failed to freeze top row for ${sheetName}:`, error);
+    throw error;
+  }
+}
+
 // Main Vercel function handler
 module.exports = async function handler(req, res) {
   // Handle CORS preflight requests
@@ -83,7 +284,7 @@ module.exports = async function handler(req, res) {
     console.log(`📡 API Request: ${method} /api/sheets?action=${action}`);
 
     // Validate request method based on action
-    const getActions = ['test', 'debug'];
+    const getActions = ['test', 'debug', 'initialize'];
     const isGetAction = getActions.includes(action);
     
     if ((isGetAction && method !== 'GET') || 
@@ -115,11 +316,14 @@ module.exports = async function handler(req, res) {
       
       case 'debug':
         return await handleDebugInfo(sheets, spreadsheetId, res);
+        
+      case 'initialize':
+        return await handleInitializeSheets(sheets, spreadsheetId, res);
       
       default:
         return res.status(400).json({
           success: false,
-          error: 'Invalid action. Use: checkin, preparer, test, or debug'
+          error: 'Invalid action. Use: checkin, preparer, test, debug, or initialize'
         });
     }
 
@@ -154,10 +358,10 @@ async function handleCheckinData(sheets, spreadsheetId, customerData, res) {
       customerData.filingStatus            // D: Filing Status
     ];
 
-    // Append data to Client Database sheet
+    // Append data to Client Database sheet (starts from row 2, after headers)
     const response = await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: 'Client Database!A:D',
+      range: 'Client Database!A2:D',
       valueInputOption: 'USER_ENTERED',
       resource: {
         values: [rowData]
@@ -202,10 +406,10 @@ async function handlePreparerData(sheets, spreadsheetId, preparerLogData, res) {
       preparerLogData.timestamp            // C: Timestamp
     ];
 
-    // Append data to Preparer Log sheet
+    // Append data to Preparer Log sheet (starts from row 2, after headers)
     const response = await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: 'Preparer Log!A:C',
+      range: 'Preparer Log!A2:C',
       valueInputOption: 'USER_ENTERED',
       resource: {
         values: [rowData]
@@ -227,6 +431,26 @@ async function handlePreparerData(sheets, spreadsheetId, preparerLogData, res) {
   } catch (error) {
     console.error('❌ Failed to sync preparer data:', error);
     throw new Error(`Preparer sync failed: ${error.message}`);
+  }
+}
+
+// Handle sheet initialization
+async function handleInitializeSheets(sheets, spreadsheetId, res) {
+  try {
+    console.log('🔧 Initialize sheets request received');
+    
+    const result = await initializeSheets(sheets, spreadsheetId);
+    
+    return res.status(200).json({
+      success: true,
+      message: 'Sheets successfully initialized with headers and formatting',
+      data: result,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to initialize sheets:', error);
+    throw new Error(`Sheet initialization failed: ${error.message}`);
   }
 }
 
@@ -316,34 +540,12 @@ async function handleDebugInfo(sheets, spreadsheetId, res) {
         range: 'Client Database!A1:D1'
       });
       
-      // Test write access with a sample entry
-      console.log('✍️ Testing sheet write access...');
-      const testData = [
-        'Debug Test User',
-        '(555) DEBUG',
-        'debug@test.com',
-        'Test'
-      ];
-      
-      const writeResponse = await sheets.spreadsheets.values.append({
-        spreadsheetId,
-        range: 'Client Database!A:D',
-        valueInputOption: 'USER_ENTERED',
-        resource: {
-          values: [testData]
-        }
-      });
-      
       sheetAccessTest = {
         success: true,
-        message: 'Sheet read and write access successful',
+        message: 'Sheet read access successful',
         readTest: {
           range: 'Client Database!A1:D1',
           values: valuesResponse.data.values || []
-        },
-        writeTest: {
-          updatedCells: writeResponse.data.updates?.updatedCells || 0,
-          updatedRange: writeResponse.data.updates?.updatedRange || 'N/A'
         }
       };
 
