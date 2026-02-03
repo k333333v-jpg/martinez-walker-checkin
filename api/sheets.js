@@ -73,6 +73,9 @@ async function initializeSheets(sheets, spreadsheetId) {
     await clearSheet(sheets, spreadsheetId, 'Client Database');
     await clearSheet(sheets, spreadsheetId, 'Preparer Log');
     
+    // Add a small delay to ensure clearing is complete
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
     // Set up Client Database sheet
     await setupClientDatabaseSheet(sheets, spreadsheetId);
     
@@ -92,10 +95,10 @@ async function clearSheet(sheets, spreadsheetId, sheetName) {
   try {
     console.log(`🧹 Clearing ${sheetName} sheet...`);
     
-    // Clear all content in the sheet
+    // Clear all content and formatting in the sheet
     await sheets.spreadsheets.values.clear({
       spreadsheetId,
-      range: `${sheetName}!A:Z`
+      range: `${sheetName}!A1:Z1000`
     });
     
     console.log(`✅ ${sheetName} sheet cleared`);
