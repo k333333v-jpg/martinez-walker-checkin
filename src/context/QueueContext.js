@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { syncToGoogleSheets } from '../utilities/googleSheets';
+// NO Google Sheets imports - all logging happens directly in components
 
 const QueueContext = createContext();
 
@@ -213,35 +213,24 @@ export function QueueProvider({ children }) {
     // Dispatch the complete customer object to reducer
     dispatch({ type: 'ADD_CUSTOMER', payload: newCustomer });
     
-    // Sync to Google Sheets (non-blocking)
-    syncToGoogleSheets({
-      ...newCustomer,
-      checkedInAt: newCustomer.timestamp.toISOString(),
-    }).then(result => {
-      if (result.success) {
-        console.log('📊 Google Sheets sync successful for customer:', newCustomer.ticketNumber);
-      } else {
-        console.warn('📊 Google Sheets sync failed:', result.message);
-      }
-    }).catch(error => {
-      console.error('📊 Google Sheets sync error:', error);
-    });
+    // NO automatic Google Sheets sync - handled separately by CheckIn component
+    console.log('✅ Customer added to local state only:', newCustomer.ticketNumber);
     
     return newCustomer;
   };
 
   const assignToPreparer = async (preparerName) => {
-    console.log(`🚨 ASSIGN TO PREPARER CALLED: ${preparerName}`);
+    console.log(`🎯 ASSIGN: ${preparerName} - LOCAL STATE ONLY`);
     const waitingCustomers = state.customers.filter(c => !c.served && !c.preparer);
     if (waitingCustomers.length === 0) {
-      console.log(`🚨 NO WAITING CUSTOMERS`);
+      console.log(`🎯 NO WAITING CUSTOMERS`);
       return;
     }
 
     const nextCustomer = waitingCustomers[0];
     
-    // Only update local state - logging will happen when service is completed
-    console.log(`🚨 ASSIGNING CUSTOMER: ${nextCustomer.ticketNumber} → ${preparerName} (NO GOOGLE SHEETS CALL)`);
+    // ONLY local state update - ZERO Google Sheets calls
+    console.log(`🎯 ASSIGNING: ${nextCustomer.ticketNumber} → ${preparerName} (LOCAL ONLY)`);
     dispatch({ type: 'ASSIGN_TO_PREPARER', payload: { preparerName } });
   };
 
