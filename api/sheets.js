@@ -71,7 +71,7 @@ async function initializeSheets(sheets, spreadsheetId) {
     
     // Clear both sheets completely first
     await clearSheet(sheets, spreadsheetId, 'Client Database');
-    await clearSheet(sheets, spreadsheetId, 'Service Completion Log');
+    await clearSheet(sheets, spreadsheetId, 'Completions');
     
     // Add a small delay to ensure clearing is complete
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -79,7 +79,7 @@ async function initializeSheets(sheets, spreadsheetId) {
     // Set up Client Database sheet
     await setupClientDatabaseSheet(sheets, spreadsheetId);
     
-    // Set up Service Completion Log sheet (NEW - only logs on completion)
+    // Set up Completions sheet (NEW - only logs on completion)
     await setupServiceCompletionSheet(sheets, spreadsheetId);
     
     console.log('✅ Sheets initialization complete');
@@ -135,16 +135,16 @@ async function setupClientDatabaseSheet(sheets, spreadsheetId) {
   }
 }
 
-// Set up Service Completion Log sheet with headers and formatting
+// Set up Completions sheet with headers and formatting
 async function setupServiceCompletionSheet(sheets, spreadsheetId) {
   try {
-    console.log('📋 Setting up Service Completion Log sheet...');
+    console.log('📋 Setting up Completions sheet...');
     
     // Add headers for service completion tracking only
     const headers = ['Completion Time', 'Client Name', 'Preparer Name', 'Status'];
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: 'Service Completion Log!A1:D1',
+      range: 'Completions!A1:D1',
       valueInputOption: 'USER_ENTERED',
       resource: {
         values: [headers]
@@ -152,12 +152,12 @@ async function setupServiceCompletionSheet(sheets, spreadsheetId) {
     });
     
     // Format headers and freeze row
-    await formatSheetHeaders(sheets, spreadsheetId, 'Service Completion Log', 'A1:D1');
-    await freezeTopRow(sheets, spreadsheetId, 'Service Completion Log');
+    await formatSheetHeaders(sheets, spreadsheetId, 'Completions', 'A1:D1');
+    await freezeTopRow(sheets, spreadsheetId, 'Completions');
     
-    console.log('✅ Service Completion Log sheet setup complete');
+    console.log('✅ Completions sheet setup complete');
   } catch (error) {
-    console.error('❌ Failed to setup Service Completion Log sheet:', error);
+    console.error('❌ Failed to setup Completions sheet:', error);
     throw error;
   }
 }
@@ -410,7 +410,7 @@ async function handlePreparerData(sheets, spreadsheetId, preparerLogData, res) {
     const status = preparerLogData.status || 'pending';
     const statusSymbol = status === 'completed' ? '✅' : '❌';
 
-    // Prepare row data for Service Completion Log sheet with status
+    // Prepare row data for Completions sheet with status
     const rowData = [
       preparerLogData.timestamp,           // A: Completion Time
       preparerLogData.clientName,          // B: Client Name
@@ -418,10 +418,10 @@ async function handlePreparerData(sheets, spreadsheetId, preparerLogData, res) {
       statusSymbol                         // D: Status (✅ for completed, ❌ for pending)
     ];
 
-    // Append data to Service Completion Log sheet (starts from row 2, after headers)
+    // Append data to Completions sheet (starts from row 2, after headers)
     const response = await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: 'Service Completion Log!A2:D',
+      range: 'Completions!A2:D',
       valueInputOption: 'USER_ENTERED',
       resource: {
         values: [rowData]
@@ -435,7 +435,7 @@ async function handlePreparerData(sheets, spreadsheetId, preparerLogData, res) {
       message: 'Service completion synced to Google Sheets',
       data: {
         updatedCells: response.data.updates?.updatedCells || 0,
-        updatedRange: response.data.updates?.updatedRange || 'Service Completion Log!A:D'
+        updatedRange: response.data.updates?.updatedRange || 'Completions!A:D'
       },
       timestamp: new Date().toISOString()
     });
@@ -487,21 +487,21 @@ async function handleUpdateHeaders(sheets, spreadsheetId, res) {
     await formatSheetHeaders(sheets, spreadsheetId, 'Client Database', 'A1:D1');
     await freezeTopRow(sheets, spreadsheetId, 'Client Database');
     
-    // Update Service Completion Log headers directly with status column
-    console.log('📋 Updating Service Completion Log headers...');
+    // Update Completions headers directly with status column
+    console.log('📋 Updating Completions headers...');
     const completionHeaders = ['Completion Time', 'Client Name', 'Preparer Name', 'Status'];
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: 'Service Completion Log!A1:D1',
+      range: 'Completions!A1:D1',
       valueInputOption: 'USER_ENTERED',
       resource: {
         values: [completionHeaders]
       }
     });
     
-    // Format and freeze Service Completion Log headers
-    await formatSheetHeaders(sheets, spreadsheetId, 'Service Completion Log', 'A1:D1');
-    await freezeTopRow(sheets, spreadsheetId, 'Service Completion Log');
+    // Format and freeze Completions headers
+    await formatSheetHeaders(sheets, spreadsheetId, 'Completions', 'A1:D1');
+    await freezeTopRow(sheets, spreadsheetId, 'Completions');
     
     return res.status(200).json({
       success: true,
