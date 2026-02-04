@@ -90,10 +90,13 @@ async function initializeSheets(sheets, spreadsheetId) {
   }
 }
 
-// Clear a sheet completely
+// Clear a sheet completely (create if doesn't exist)
 async function clearSheet(sheets, spreadsheetId, sheetName) {
   try {
     console.log(`🧹 Clearing ${sheetName} sheet...`);
+    
+    // Ensure sheet exists before trying to clear
+    await ensureSheetExists(sheets, spreadsheetId, sheetName);
     
     // Clear all content and formatting in the sheet
     await sheets.spreadsheets.values.clear({
@@ -140,6 +143,9 @@ async function setupServiceCompletionSheet(sheets, spreadsheetId) {
   try {
     console.log('📋 Setting up ServiceLog sheet...');
     
+    // First check if ServiceLog sheet exists, create if not
+    await ensureSheetExists(sheets, spreadsheetId, 'ServiceLog');
+    
     // Add headers for service completion tracking only
     const headers = ['Completion Time', 'Client Name', 'Preparer Name', 'Status'];
     await sheets.spreadsheets.values.update({
@@ -158,6 +164,51 @@ async function setupServiceCompletionSheet(sheets, spreadsheetId) {
     console.log('✅ ServiceLog sheet setup complete');
   } catch (error) {
     console.error('❌ Failed to setup ServiceLog sheet:', error);
+    throw error;
+  }
+}
+
+// Ensure a sheet exists, create if it doesn't
+async function ensureSheetExists(sheets, spreadsheetId, sheetName) {
+  try {
+    // Get current spreadsheet info to check existing sheets
+    const spreadsheet = await sheets.spreadsheets.get({
+      spreadsheetId: spreadsheetId
+    });
+    
+    // Check if sheet already exists
+    const existingSheet = spreadsheet.data.sheets.find(
+      sheet => sheet.properties.title === sheetName
+    );
+    
+    if (existingSheet) {
+      console.log(`✅ Sheet "${sheetName}" already exists`);
+      return existingSheet.properties.sheetId;
+    }
+    
+    // Create the sheet if it doesn't exist
+    console.log(`📋 Creating new sheet: "${sheetName}"`);
+    const addSheetResponse = await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      resource: {
+        requests: [
+          {
+            addSheet: {
+              properties: {
+                title: sheetName
+              }
+            }
+          }
+        ]
+      }
+    });
+    
+    const newSheetId = addSheetResponse.data.replies[0].addSheet.properties.sheetId;
+    console.log(`✅ Sheet "${sheetName}" created with ID: ${newSheetId}`);
+    return newSheetId;
+    
+  } catch (error) {
+    console.error(`❌ Failed to ensure sheet "${sheetName}" exists:`, error);
     throw error;
   }
 }
