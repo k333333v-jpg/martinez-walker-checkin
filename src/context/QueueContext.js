@@ -245,41 +245,10 @@ export function QueueProvider({ children }) {
     dispatch({ type: 'ASSIGN_TO_PREPARER', payload: { preparerName } });
   };
 
-  const completeService = async (preparerName, status = 'completed') => {
-    const currentCustomer = state.preparers[preparerName];
-    if (!currentCustomer) return;
-    
-    // Prevent duplicate calls by checking if customer is already being processed
-    if (currentCustomer.isCompleting) {
-      console.log('⚠️ Service completion already in progress, skipping duplicate call');
-      return;
-    }
-    
-    // Mark as being processed
-    currentCustomer.isCompleting = true;
-    
-    // First update local state
+  const completeService = (preparerName, status = 'completed') => {
+    // ONLY update local state - NO Google Sheets logging here
     dispatch({ type: 'COMPLETE_SERVICE', payload: { preparerName, status } });
-    
-    // Then sync to Google Sheets (non-blocking)
-    syncToPreparerLog({
-      timestamp: new Date().toISOString(),
-      clientName: currentCustomer.name,
-      preparerName: preparerName,
-      ticketNumber: currentCustomer.ticketNumber,
-      status: status
-    }).then(result => {
-      if (result.success) {
-        console.log(`✅ Service ${status} logged to Google Sheets:`, currentCustomer.ticketNumber);
-      } else {
-        console.warn('📋 Preparer Log sync failed:', result.message);
-      }
-    }).catch(error => {
-      console.error('📋 Preparer Log sync error:', error);
-    }).finally(() => {
-      // Reset the flag
-      currentCustomer.isCompleting = false;
-    });
+    console.log(`✅ Service ${status} - local state updated only`);
   };
 
   const getEstimatedWaitTime = (position) => {

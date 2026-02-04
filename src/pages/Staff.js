@@ -51,14 +51,64 @@ const Staff = () => {
     }
   };
 
-  const handleCompleteService = (preparerName) => {
+  const handleCompleteService = async (preparerName) => {
+    const currentCustomer = preparers[preparerName];
+    if (!currentCustomer) return;
+    
+    // First update local state
     completeService(preparerName, 'completed');
-    console.log(`✅ Service completed for ${preparerName}`);
+    
+    // Then directly call Google Sheets API
+    try {
+      const response = await fetch('/api/sheets?action=preparer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          timestamp: new Date().toISOString(),
+          clientName: currentCustomer.name,
+          preparerName: preparerName,
+          ticketNumber: currentCustomer.ticketNumber,
+          status: 'completed'
+        })
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        console.log(`✅ Service COMPLETED logged to Google Sheets`);
+      }
+    } catch (error) {
+      console.error('❌ Failed to log completion:', error);
+    }
   };
 
-  const handlePendingService = (preparerName) => {
+  const handlePendingService = async (preparerName) => {
+    const currentCustomer = preparers[preparerName];
+    if (!currentCustomer) return;
+    
+    // First update local state
     completeService(preparerName, 'pending');
-    console.log(`⏸️ Service marked as pending for ${preparerName}`);
+    
+    // Then directly call Google Sheets API
+    try {
+      const response = await fetch('/api/sheets?action=preparer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          timestamp: new Date().toISOString(),
+          clientName: currentCustomer.name,
+          preparerName: preparerName,
+          ticketNumber: currentCustomer.ticketNumber,
+          status: 'pending'
+        })
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        console.log(`⏸️ Service PENDING logged to Google Sheets`);
+      }
+    } catch (error) {
+      console.error('❌ Failed to log pending:', error);
+    }
   };
 
   const formatTime = (date) => {
