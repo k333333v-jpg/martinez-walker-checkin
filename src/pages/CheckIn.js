@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQueue } from '../context/QueueContext';
 import Header from '../components/Header';
-import { testGoogleSheetsConnection } from '../utilities/googleSheetsAPI';
 
 const CheckIn = () => {
   const { addCustomer, getEstimatedWaitTime } = useQueue();
@@ -22,20 +21,7 @@ const CheckIn = () => {
     }
   }, [showConfirmation]);
 
-  // Test Google Sheets connection on component mount
-  useEffect(() => {
-    if (process.env.REACT_APP_GOOGLE_SPREADSHEET_ID) {
-      testGoogleSheetsConnection().then(result => {
-        if (result.success) {
-          console.log('✅ Google Sheets ready for Martinez & Walker queue system');
-        } else {
-          console.warn('⚠️ Google Sheets not configured - using console mode');
-        }
-      }).catch(error => {
-        console.warn('⚠️ Google Sheets connection test failed:', error);
-      });
-    }
-  }, []);
+  // No Google Sheets testing - keeping frontend completely separate
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
