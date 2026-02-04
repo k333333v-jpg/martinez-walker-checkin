@@ -76,7 +76,8 @@ export async function syncPreparerToSheets(preparerLogData) {
     timestamp: preparerLogData.timestamp,
     clientName: preparerLogData.clientName,
     preparerName: preparerLogData.preparerName,
-    ticketNumber: preparerLogData.ticketNumber
+    ticketNumber: preparerLogData.ticketNumber,
+    status: preparerLogData.status
   });
 }
 
