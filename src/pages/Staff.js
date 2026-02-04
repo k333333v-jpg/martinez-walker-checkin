@@ -41,9 +41,9 @@ const Staff = () => {
     setSyncing(prev => ({ ...prev, [preparerName]: true }));
     
     try {
-      // Assign customer to preparer (now handles Google Sheets sync internally)
+      // Assign customer to preparer (no Google Sheets logging - only at completion)
       await assignToPreparer(preparerName);
-      console.log(`✅ Customer assigned to ${preparerName} and synced to Google Sheets`);
+      console.log(`✅ Customer assigned to ${preparerName} - will log to sheets when service completed`);
     } catch (error) {
       console.error('❌ Error assigning customer:', error);
     } finally {
