@@ -55,11 +55,15 @@ const Staff = () => {
     const currentCustomer = preparers[preparerName];
     if (!currentCustomer) return;
     
-    // First update local state
-    completeService(preparerName, 'completed');
+    // Prevent double clicks
+    if (syncing[`${preparerName}_complete`]) return;
+    setSyncing(prev => ({ ...prev, [`${preparerName}_complete`]: true }));
     
-    // Then directly call Google Sheets API
     try {
+      // First update local state
+      completeService(preparerName, 'completed');
+      
+      // Then directly call Google Sheets API - ONLY ONCE
       const response = await fetch('/api/sheets?action=preparer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -74,10 +78,15 @@ const Staff = () => {
       
       const result = await response.json();
       if (result.success) {
-        console.log(`✅ Service COMPLETED logged to Google Sheets`);
+        console.log(`✅ Service COMPLETED logged to Google Sheets ONCE`);
       }
     } catch (error) {
       console.error('❌ Failed to log completion:', error);
+    } finally {
+      // Reset debounce after delay
+      setTimeout(() => {
+        setSyncing(prev => ({ ...prev, [`${preparerName}_complete`]: false }));
+      }, 2000);
     }
   };
 
@@ -85,11 +94,15 @@ const Staff = () => {
     const currentCustomer = preparers[preparerName];
     if (!currentCustomer) return;
     
-    // First update local state
-    completeService(preparerName, 'pending');
+    // Prevent double clicks
+    if (syncing[`${preparerName}_pending`]) return;
+    setSyncing(prev => ({ ...prev, [`${preparerName}_pending`]: true }));
     
-    // Then directly call Google Sheets API
     try {
+      // First update local state
+      completeService(preparerName, 'pending');
+      
+      // Then directly call Google Sheets API - ONLY ONCE
       const response = await fetch('/api/sheets?action=preparer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -104,10 +117,15 @@ const Staff = () => {
       
       const result = await response.json();
       if (result.success) {
-        console.log(`⏸️ Service PENDING logged to Google Sheets`);
+        console.log(`⏸️ Service PENDING logged to Google Sheets ONCE`);
       }
     } catch (error) {
       console.error('❌ Failed to log pending:', error);
+    } finally {
+      // Reset debounce after delay
+      setTimeout(() => {
+        setSyncing(prev => ({ ...prev, [`${preparerName}_pending`]: false }));
+      }, 2000);
     }
   };
 
@@ -160,14 +178,16 @@ const Staff = () => {
                             <button 
                               className="btn-primary complete-btn"
                               onClick={() => handleCompleteService(preparerName)}
+                              disabled={syncing[`${preparerName}_complete`] || syncing[`${preparerName}_pending`]}
                             >
-                              ✅ Complete Service
+                              {syncing[`${preparerName}_complete`] ? 'Completing...' : '✅ Complete Service'}
                             </button>
                             <button 
                               className="btn-secondary pending-btn"
                               onClick={() => handlePendingService(preparerName)}
+                              disabled={syncing[`${preparerName}_complete`] || syncing[`${preparerName}_pending`]}
                             >
-                              ⏸️ Mark Pending
+                              {syncing[`${preparerName}_pending`] ? 'Marking Pending...' : '⏸️ Mark Pending'}
                             </button>
                           </div>
                         </div>
