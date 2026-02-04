@@ -236,22 +236,8 @@ export function QueueProvider({ children }) {
 
     const nextCustomer = waitingCustomers[0];
     
-    // Sync to Preparer Log in Google Sheets (non-blocking)
-    syncToPreparerLog({
-      timestamp: new Date().toISOString(),
-      clientName: nextCustomer.name,
-      preparerName: preparerName,
-      ticketNumber: nextCustomer.ticketNumber
-    }).then(result => {
-      if (result.success) {
-        console.log('📋 Preparer Log sync successful for assignment:', nextCustomer.ticketNumber, '→', preparerName);
-      } else {
-        console.warn('📋 Preparer Log sync failed:', result.message);
-      }
-    }).catch(error => {
-      console.error('📋 Preparer Log sync error:', error);
-    });
-    
+    // Only update local state - logging will happen when service is completed
+    console.log('👩‍💼 Assigning customer to preparer:', nextCustomer.ticketNumber, '→', preparerName);
     dispatch({ type: 'ASSIGN_TO_PREPARER', payload: { preparerName } });
   };
 
