@@ -71,7 +71,7 @@ async function initializeSheets(sheets, spreadsheetId) {
     
     // Clear both sheets completely first
     await clearSheet(sheets, spreadsheetId, 'Client Database');
-    await clearSheet(sheets, spreadsheetId, 'Preparer Log');
+    await clearSheet(sheets, spreadsheetId, 'Service Completion Log');
     
     // Add a small delay to ensure clearing is complete
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -79,8 +79,8 @@ async function initializeSheets(sheets, spreadsheetId) {
     // Set up Client Database sheet
     await setupClientDatabaseSheet(sheets, spreadsheetId);
     
-    // Set up Preparer Log sheet
-    await setupPreparerLogSheet(sheets, spreadsheetId);
+    // Set up Service Completion Log sheet (NEW - only logs on completion)
+    await setupServiceCompletionSheet(sheets, spreadsheetId);
     
     console.log('✅ Sheets initialization complete');
     return { success: true, message: 'Sheets initialized with headers and formatting' };
@@ -135,16 +135,16 @@ async function setupClientDatabaseSheet(sheets, spreadsheetId) {
   }
 }
 
-// Set up Preparer Log sheet with headers and formatting
-async function setupPreparerLogSheet(sheets, spreadsheetId) {
+// Set up Service Completion Log sheet with headers and formatting
+async function setupServiceCompletionSheet(sheets, spreadsheetId) {
   try {
-    console.log('📋 Setting up Preparer Log sheet...');
+    console.log('📋 Setting up Service Completion Log sheet...');
     
-    // Add headers with status column
-    const headers = ['Client Name', 'Preparer Name', 'Timestamp', 'Status'];
+    // Add headers for service completion tracking only
+    const headers = ['Completion Time', 'Client Name', 'Preparer Name', 'Status'];
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: 'Preparer Log!A1:D1',
+      range: 'Service Completion Log!A1:D1',
       valueInputOption: 'USER_ENTERED',
       resource: {
         values: [headers]
@@ -152,12 +152,12 @@ async function setupPreparerLogSheet(sheets, spreadsheetId) {
     });
     
     // Format headers and freeze row
-    await formatSheetHeaders(sheets, spreadsheetId, 'Preparer Log', 'A1:D1');
-    await freezeTopRow(sheets, spreadsheetId, 'Preparer Log');
+    await formatSheetHeaders(sheets, spreadsheetId, 'Service Completion Log', 'A1:D1');
+    await freezeTopRow(sheets, spreadsheetId, 'Service Completion Log');
     
-    console.log('✅ Preparer Log sheet setup complete');
+    console.log('✅ Service Completion Log sheet setup complete');
   } catch (error) {
-    console.error('❌ Failed to setup Preparer Log sheet:', error);
+    console.error('❌ Failed to setup Service Completion Log sheet:', error);
     throw error;
   }
 }
@@ -410,32 +410,32 @@ async function handlePreparerData(sheets, spreadsheetId, preparerLogData, res) {
     const status = preparerLogData.status || 'pending';
     const statusSymbol = status === 'completed' ? '✅' : '❌';
 
-    // Prepare row data for Preparer Log sheet with status
+    // Prepare row data for Service Completion Log sheet with status
     const rowData = [
-      preparerLogData.clientName,          // A: Client Name
-      preparerLogData.preparerName,        // B: Preparer Name
-      preparerLogData.timestamp,           // C: Timestamp
+      preparerLogData.timestamp,           // A: Completion Time
+      preparerLogData.clientName,          // B: Client Name
+      preparerLogData.preparerName,        // C: Preparer Name
       statusSymbol                         // D: Status (✅ for completed, ❌ for pending)
     ];
 
-    // Append data to Preparer Log sheet (starts from row 2, after headers)
+    // Append data to Service Completion Log sheet (starts from row 2, after headers)
     const response = await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: 'Preparer Log!A2:D',
+      range: 'Service Completion Log!A2:D',
       valueInputOption: 'USER_ENTERED',
       resource: {
         values: [rowData]
       }
     });
 
-    console.log('✅ Successfully synced preparer assignment to Google Sheets');
+    console.log('✅ Successfully synced service completion to Google Sheets');
 
     return res.status(200).json({
       success: true,
-      message: 'Preparer assignment synced to Google Sheets',
+      message: 'Service completion synced to Google Sheets',
       data: {
         updatedCells: response.data.updates?.updatedCells || 0,
-        updatedRange: response.data.updates?.updatedRange || 'Preparer Log!A:D'
+        updatedRange: response.data.updates?.updatedRange || 'Service Completion Log!A:D'
       },
       timestamp: new Date().toISOString()
     });
@@ -487,21 +487,21 @@ async function handleUpdateHeaders(sheets, spreadsheetId, res) {
     await formatSheetHeaders(sheets, spreadsheetId, 'Client Database', 'A1:D1');
     await freezeTopRow(sheets, spreadsheetId, 'Client Database');
     
-    // Update Preparer Log headers directly with status column
-    console.log('📋 Updating Preparer Log headers...');
-    const preparerHeaders = ['Client Name', 'Preparer Name', 'Timestamp', 'Status'];
+    // Update Service Completion Log headers directly with status column
+    console.log('📋 Updating Service Completion Log headers...');
+    const completionHeaders = ['Completion Time', 'Client Name', 'Preparer Name', 'Status'];
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: 'Preparer Log!A1:D1',
+      range: 'Service Completion Log!A1:D1',
       valueInputOption: 'USER_ENTERED',
       resource: {
-        values: [preparerHeaders]
+        values: [completionHeaders]
       }
     });
     
-    // Format and freeze Preparer Log headers
-    await formatSheetHeaders(sheets, spreadsheetId, 'Preparer Log', 'A1:D1');
-    await freezeTopRow(sheets, spreadsheetId, 'Preparer Log');
+    // Format and freeze Service Completion Log headers
+    await formatSheetHeaders(sheets, spreadsheetId, 'Service Completion Log', 'A1:D1');
+    await freezeTopRow(sheets, spreadsheetId, 'Service Completion Log');
     
     return res.status(200).json({
       success: true,
