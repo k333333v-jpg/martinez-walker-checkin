@@ -231,20 +231,29 @@ export function QueueProvider({ children }) {
   };
 
   const assignToPreparer = async (preparerName) => {
+    console.log(`🚨 ASSIGN TO PREPARER CALLED: ${preparerName}`);
     const waitingCustomers = state.customers.filter(c => !c.served && !c.preparer);
-    if (waitingCustomers.length === 0) return;
+    if (waitingCustomers.length === 0) {
+      console.log(`🚨 NO WAITING CUSTOMERS`);
+      return;
+    }
 
     const nextCustomer = waitingCustomers[0];
     
     // Only update local state - logging will happen when service is completed
-    console.log('👩‍💼 Assigning customer to preparer:', nextCustomer.ticketNumber, '→', preparerName);
+    console.log(`🚨 ASSIGNING CUSTOMER: ${nextCustomer.ticketNumber} → ${preparerName} (NO GOOGLE SHEETS CALL)`);
     dispatch({ type: 'ASSIGN_TO_PREPARER', payload: { preparerName } });
   };
 
   const completeService = async (preparerName, status = 'completed') => {
+    console.log(`🚨 COMPLETE SERVICE CALLED: ${preparerName} with status: ${status}`);
     const currentCustomer = state.preparers[preparerName];
-    if (!currentCustomer) return;
+    if (!currentCustomer) {
+      console.log(`🚨 NO CUSTOMER FOUND for preparer: ${preparerName}`);
+      return;
+    }
     
+    console.log(`🚨 ABOUT TO CALL syncToPreparerLog for: ${currentCustomer.name}`);
     // Sync completion status to Preparer Log in Google Sheets
     syncToPreparerLog({
       timestamp: new Date().toISOString(),
@@ -253,6 +262,7 @@ export function QueueProvider({ children }) {
       ticketNumber: currentCustomer.ticketNumber,
       status: status
     }).then(result => {
+      console.log(`🚨 SYNC RESULT:`, result);
       if (result.success) {
         console.log(`📋 Preparer Log sync successful for ${status}:`, currentCustomer.ticketNumber, '→', preparerName);
       } else {
