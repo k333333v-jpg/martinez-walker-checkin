@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { syncToGoogleSheets, syncToPreparerLog } from '../utilities/googleSheets';
+import { syncToGoogleSheets } from '../utilities/googleSheets';
 
 const QueueContext = createContext();
 
