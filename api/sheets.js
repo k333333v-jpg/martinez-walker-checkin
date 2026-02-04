@@ -69,7 +69,11 @@ async function initializeSheets(sheets, spreadsheetId) {
   try {
     console.log('🔧 Initializing sheets with headers and formatting...');
     
-    // Clear both sheets completely first
+    // First ensure both sheets exist
+    await ensureSheetExists(sheets, spreadsheetId, 'Client Database');
+    await ensureSheetExists(sheets, spreadsheetId, 'ServiceLog');
+    
+    // Clear both sheets completely
     await clearSheet(sheets, spreadsheetId, 'Client Database');
     await clearSheet(sheets, spreadsheetId, 'ServiceLog');
     
@@ -90,13 +94,10 @@ async function initializeSheets(sheets, spreadsheetId) {
   }
 }
 
-// Clear a sheet completely (create if doesn't exist)
+// Clear a sheet completely 
 async function clearSheet(sheets, spreadsheetId, sheetName) {
   try {
     console.log(`🧹 Clearing ${sheetName} sheet...`);
-    
-    // Ensure sheet exists before trying to clear
-    await ensureSheetExists(sheets, spreadsheetId, sheetName);
     
     // Clear all content and formatting in the sheet
     await sheets.spreadsheets.values.clear({
@@ -142,9 +143,6 @@ async function setupClientDatabaseSheet(sheets, spreadsheetId) {
 async function setupServiceCompletionSheet(sheets, spreadsheetId) {
   try {
     console.log('📋 Setting up ServiceLog sheet...');
-    
-    // First check if ServiceLog sheet exists, create if not
-    await ensureSheetExists(sheets, spreadsheetId, 'ServiceLog');
     
     // Add headers for service completion tracking only
     const headers = ['Completion Time', 'Client Name', 'Preparer Name', 'Status'];
