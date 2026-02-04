@@ -508,7 +508,7 @@ async function handleUpdateHeaders(sheets, spreadsheetId, res) {
       message: 'Headers successfully updated with new structure',
       data: {
         clientDatabaseHeaders: clientHeaders,
-        preparerLogHeaders: preparerHeaders
+        preparerLogHeaders: completionHeaders
       },
       timestamp: new Date().toISOString()
     });
