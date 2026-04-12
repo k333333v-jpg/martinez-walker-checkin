@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
-const Header = () => {
+const Header = ({ hideNav }) => {
   const location = useLocation();
 
   return (
@@ -18,17 +18,19 @@ const Header = () => {
           <p className="company-tagline">Professional Tax Services</p>
         </div>
       </div>
-      <nav className="header-nav">
-        <Link to="/" className={`nav-link${location.pathname === '/' ? ' nav-link-active' : ''}`}>
-          Check In
-        </Link>
-        <Link to="/waiting" className={`nav-link${location.pathname === '/waiting' ? ' nav-link-active' : ''}`}>
-          Waiting Room
-        </Link>
-        <Link to="/staff" className={`nav-link${location.pathname === '/staff' ? ' nav-link-active' : ''}`}>
-          Staff
-        </Link>
-      </nav>
+      {!hideNav && (
+        <nav className="header-nav">
+          <Link to="/" className={`nav-link${location.pathname === '/' ? ' nav-link-active' : ''}`}>
+            Check In
+          </Link>
+          <Link to="/waiting" className={`nav-link${location.pathname === '/waiting' ? ' nav-link-active' : ''}`}>
+            Waiting Room
+          </Link>
+          <Link to="/staff" className={`nav-link${location.pathname === '/staff' ? ' nav-link-active' : ''}`}>
+            Staff
+          </Link>
+        </nav>
+      )}
     </header>
   );
 };
