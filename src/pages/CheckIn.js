@@ -4,54 +4,52 @@ import Header from '../components/Header';
 
 const CheckIn = () => {
   const { addCustomer, getEstimatedWaitTime } = useQueue();
-  const [formData, setFormData] = useState({
-    name: '',
-    phone: '',
-    email: '',
-    filingStatus: 'Individual'
-  });
+  const [formData, setFormData] = useState({ name: '', phone: '', email: '', filingStatus: 'Individual' });
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [ticket, setTicket] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
   const nameInputRef = useRef(null);
 
-  // Auto-focus on first field when page loads
   useEffect(() => {
     if (!showConfirmation && nameInputRef.current) {
       nameInputRef.current.focus();
     }
   }, [showConfirmation]);
 
-  // No Google Sheets testing - keeping frontend completely separate
-
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleFilingStatus = (status) => {
+    setFormData(prev => ({ ...prev, filingStatus: status }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    console.log('🎫 CheckIn: Submitting form data:', formData);
+    if (submitting) return;
+    setSubmitting(true);
+
     try {
       const newCustomer = await addCustomer(formData);
-      console.log('✅ CheckIn: Customer added successfully:', newCustomer);
       setTicket(newCustomer);
       setShowConfirmation(true);
-      
-      // Reset form
-      setFormData({
-        name: '',
-        phone: '',
-        email: '',
-        filingStatus: 'Individual'
-      });
+      setFormData({ name: '', phone: '', email: '', filingStatus: 'Individual' });
+
+      // Fire-and-forget — doesn't block confirmation screen
+      fetch('/api/sheets?action=checkin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newCustomer.name,
+          phone: newCustomer.phone,
+          email: newCustomer.email,
+        }),
+      }).catch(() => {});
     } catch (error) {
-      console.error('❌ CheckIn: Error adding customer:', error);
-      // Still proceed with showing confirmation since the customer was added to local state
-      // The Google Sheets sync will be handled in the background
+      console.error('Error adding customer:', error);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -62,33 +60,45 @@ const CheckIn = () => {
 
   if (showConfirmation && ticket) {
     const estimatedWait = getEstimatedWaitTime(ticket.position);
-    
+
     return (
       <div className="page">
         <Header />
         <main className="main-content">
           <div className="confirmation-container">
-            <div className="ticket-receipt">
-              <h2>Check-in Confirmation</h2>
-              <div className="ticket-info">
-                <div className="ticket-number">
-                  Ticket #{ticket.ticketNumber}
+            <div className="confirmation-card">
+              <div className="confirmation-icon">
+                <svg viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="26" cy="26" r="26" fill="#16a34a" opacity="0.12" />
+                  <circle cx="26" cy="26" r="20" fill="#16a34a" />
+                  <path d="M16 26l7 7 13-13" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <h2 className="confirmation-title">You're checked in!</h2>
+              <p className="confirmation-subtitle">We'll call your name when a preparer is ready.</p>
+
+              <div className="ticket-badge">{ticket.ticketNumber}</div>
+
+              <div className="confirmation-stats">
+                <div className="stat-item">
+                  <span className="stat-value">{ticket.position}</span>
+                  <span className="stat-label">Queue Position</span>
                 </div>
-                <div className="customer-details">
-                  <p><strong>Name:</strong> {ticket.name}</p>
-                  <p><strong>Filing Status:</strong> {ticket.filingStatus}</p>
-                  <p><strong>Queue Position:</strong> {ticket.position}</p>
-                  <p><strong>Estimated Wait Time:</strong> {estimatedWait} minutes</p>
-                </div>
-                <div className="instructions">
-                  <p>Please have a seat in our waiting area. We'll call you when it's your turn.</p>
-                  <p>You can monitor the queue status on our waiting room display.</p>
+                <div className="stat-divider" />
+                <div className="stat-item">
+                  <span className="stat-value">~{estimatedWait}m</span>
+                  <span className="stat-label">Est. Wait</span>
                 </div>
               </div>
-              <button 
-                className="btn-secondary" 
-                onClick={handleNewCheckIn}
-              >
+
+              <div className="confirmation-callout">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <span>Please take a seat — you can track the queue on the waiting room display.</span>
+              </div>
+
+              <button className="btn-secondary" onClick={handleNewCheckIn}>
                 New Check-in
               </button>
             </div>
@@ -100,76 +110,83 @@ const CheckIn = () => {
 
   return (
     <div className="page">
-      <Header title="Client Check-in" />
+      <Header />
       <main className="main-content">
         <div className="form-container">
-          <form onSubmit={handleSubmit} className="check-in-form">
-            <div className="form-group">
-              <label htmlFor="name">Full Name *</label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                required
-                className="form-input"
-                ref={nameInputRef}
-                autoComplete="name"
-                placeholder="Enter your full name"
-              />
+          <div className="form-card">
+            <div className="form-header">
+              <h2 className="form-title">Welcome</h2>
+              <p className="form-subtitle">Please check in below and we'll be with you shortly.</p>
             </div>
 
-            <div className="form-group">
-              <label htmlFor="phone">Phone Number *</label>
-              <input
-                type="tel"
-                id="phone"
-                name="phone"
-                value={formData.phone}
-                onChange={handleInputChange}
-                required
-                className="form-input"
-                autoComplete="tel"
-                placeholder="(555) 123-4567"
-              />
-            </div>
+            <form onSubmit={handleSubmit} className="check-in-form">
+              <div className="form-group">
+                <label htmlFor="name">Full Name</label>
+                <input
+                  type="text"
+                  id="name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  required
+                  className="form-input"
+                  ref={nameInputRef}
+                  autoComplete="name"
+                  placeholder="Enter your full name"
+                />
+              </div>
 
-            <div className="form-group">
-              <label htmlFor="email">Email Address *</label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                required
-                className="form-input"
-                autoComplete="email"
-                placeholder="your@email.com"
-              />
-            </div>
+              <div className="form-group">
+                <label htmlFor="phone">Phone Number</label>
+                <input
+                  type="tel"
+                  id="phone"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                  required
+                  className="form-input"
+                  autoComplete="tel"
+                  placeholder="(555) 123-4567"
+                />
+              </div>
 
-            <div className="form-group">
-              <label htmlFor="filingStatus">Filing Status *</label>
-              <select
-                id="filingStatus"
-                name="filingStatus"
-                value={formData.filingStatus}
-                onChange={handleInputChange}
-                required
-                className="form-select"
-              >
-                <option value="Individual">Individual</option>
-                <option value="Business">Business</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
+              <div className="form-group">
+                <label htmlFor="email">Email Address</label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  required
+                  className="form-input"
+                  autoComplete="email"
+                  placeholder="your@email.com"
+                />
+              </div>
 
-            <button type="submit" className="btn-primary">
-              Check In
-            </button>
-          </form>
+              <div className="form-group">
+                <label>Filing Status</label>
+                <div className="filing-toggle">
+                  {['Individual', 'Business', 'Other'].map(status => (
+                    <button
+                      key={status}
+                      type="button"
+                      className={`filing-option${formData.filingStatus === status ? ' filing-option-active' : ''}`}
+                      onClick={() => handleFilingStatus(status)}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button type="submit" className="btn-primary btn-submit" disabled={submitting}>
+                {submitting ? 'Checking in…' : 'Check In'}
+              </button>
+            </form>
+          </div>
         </div>
       </main>
     </div>

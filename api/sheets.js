@@ -1,715 +1,201 @@
 // Vercel serverless function for Google Sheets integration
-// This runs on the backend and can safely use Google Sheets API
-
 const { google } = require('googleapis');
 
-// CORS headers for frontend requests
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
-// Initialize Google Sheets API
 async function initializeGoogleSheets() {
-  try {
-    // Get credentials from environment variables
-    const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-    const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
-    const projectId = process.env.GOOGLE_PROJECT_ID;
-    const spreadsheetId = process.env.REACT_APP_GOOGLE_SPREADSHEET_ID;
+  const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+  const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
+  const projectId = process.env.GOOGLE_PROJECT_ID;
+  const spreadsheetId = process.env.REACT_APP_GOOGLE_SPREADSHEET_ID;
 
-    console.log('🔍 Environment variables check:', {
-      hasPrivateKey: !!privateKey,
-      privateKeyLength: privateKey?.length || 0,
-      privateKeyPrefix: privateKey?.substring(0, 50) + '...',
-      clientEmail: clientEmail,
-      projectId: projectId,
-      spreadsheetId: spreadsheetId,
-      allEnvVars: Object.keys(process.env).filter(key => key.includes('GOOGLE') || key.includes('REACT_APP'))
-    });
-
-    if (!privateKey || !clientEmail || !projectId) {
-      const missingVars = [];
-      if (!privateKey) missingVars.push('GOOGLE_PRIVATE_KEY');
-      if (!clientEmail) missingVars.push('GOOGLE_CLIENT_EMAIL');
-      if (!projectId) missingVars.push('GOOGLE_PROJECT_ID');
-      
-      throw new Error(`Missing Google Sheets credentials: ${missingVars.join(', ')}`);
-    }
-
-    console.log('🔧 Initializing Google Sheets API with valid credentials...');
-
-    // Create JWT auth client
-    const auth = new google.auth.JWT(
-      clientEmail,
-      null,
-      privateKey,
-      ['https://www.googleapis.com/auth/spreadsheets']
-    );
-
-    // Test authentication
-    console.log('🔐 Testing JWT authentication...');
-    await auth.authorize();
-    console.log('✅ JWT authentication successful');
-
-    // Initialize the sheets API
-    const sheets = google.sheets({ version: 'v4', auth });
-    
-    return sheets;
-  } catch (error) {
-    console.error('❌ Failed to initialize Google Sheets API:', error.message);
-    console.error('❌ Full error:', error);
-    throw error;
+  if (!privateKey || !clientEmail || !projectId) {
+    const missing = [
+      !privateKey && 'GOOGLE_PRIVATE_KEY',
+      !clientEmail && 'GOOGLE_CLIENT_EMAIL',
+      !projectId && 'GOOGLE_PROJECT_ID',
+    ].filter(Boolean);
+    throw new Error(`Missing Google Sheets credentials: ${missing.join(', ')}`);
   }
+
+  const auth = new google.auth.JWT(
+    clientEmail,
+    null,
+    privateKey,
+    ['https://www.googleapis.com/auth/spreadsheets']
+  );
+  await auth.authorize();
+  return google.sheets({ version: 'v4', auth });
 }
 
-// Initialize sheets with proper headers and formatting
-async function initializeSheets(sheets, spreadsheetId) {
-  try {
-    console.log('🔧 Initializing sheets with headers and formatting...');
-    
-    // First ensure both sheets exist
-    await ensureSheetExists(sheets, spreadsheetId, 'Client Database');
-    await ensureSheetExists(sheets, spreadsheetId, 'ServiceLog');
-    
-    // Clear both sheets completely
-    await clearSheet(sheets, spreadsheetId, 'Client Database');
-    await clearSheet(sheets, spreadsheetId, 'ServiceLog');
-    
-    // Add a small delay to ensure clearing is complete
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Set up Client Database sheet
-    await setupClientDatabaseSheet(sheets, spreadsheetId);
-    
-    // Set up ServiceLog sheet (NEW - only logs on completion)
-    await setupServiceCompletionSheet(sheets, spreadsheetId);
-    
-    console.log('✅ Sheets initialization complete');
-    return { success: true, message: 'Sheets initialized with headers and formatting' };
-  } catch (error) {
-    console.error('❌ Failed to initialize sheets:', error);
-    throw error;
-  }
-}
-
-// Clear a sheet completely 
-async function clearSheet(sheets, spreadsheetId, sheetName) {
-  try {
-    console.log(`🧹 Clearing ${sheetName} sheet...`);
-    
-    // Clear all content and formatting in the sheet
-    await sheets.spreadsheets.values.clear({
-      spreadsheetId,
-      range: `${sheetName}!A1:Z1000`
-    });
-    
-    console.log(`✅ ${sheetName} sheet cleared`);
-  } catch (error) {
-    console.error(`❌ Failed to clear ${sheetName} sheet:`, error);
-    throw error;
-  }
-}
-
-// Set up Client Database sheet with headers and formatting
-async function setupClientDatabaseSheet(sheets, spreadsheetId) {
-  try {
-    console.log('📊 Setting up Client Database sheet...');
-    
-    // Add headers with timestamp first
-    const headers = ['Timestamp', 'Name', 'Phone', 'Email'];
-    await sheets.spreadsheets.values.update({
-      spreadsheetId,
-      range: 'Client Database!A1:D1',
-      valueInputOption: 'USER_ENTERED',
-      resource: {
-        values: [headers]
-      }
-    });
-    
-    // Format headers and freeze row
-    await formatSheetHeaders(sheets, spreadsheetId, 'Client Database', 'A1:D1');
-    await freezeTopRow(sheets, spreadsheetId, 'Client Database');
-    
-    console.log('✅ Client Database sheet setup complete');
-  } catch (error) {
-    console.error('❌ Failed to setup Client Database sheet:', error);
-    throw error;
-  }
-}
-
-// Set up ServiceLog sheet with headers and formatting
-async function setupServiceCompletionSheet(sheets, spreadsheetId) {
-  try {
-    console.log('📋 Setting up ServiceLog sheet...');
-    
-    // Add headers for service completion tracking only
-    const headers = ['Completion Time', 'Client Name', 'Preparer Name', 'Status'];
-    await sheets.spreadsheets.values.update({
-      spreadsheetId,
-      range: 'ServiceLog!A1:D1',
-      valueInputOption: 'USER_ENTERED',
-      resource: {
-        values: [headers]
-      }
-    });
-    
-    // Format headers and freeze row
-    await formatSheetHeaders(sheets, spreadsheetId, 'ServiceLog', 'A1:D1');
-    await freezeTopRow(sheets, spreadsheetId, 'ServiceLog');
-    
-    console.log('✅ ServiceLog sheet setup complete');
-  } catch (error) {
-    console.error('❌ Failed to setup ServiceLog sheet:', error);
-    throw error;
-  }
-}
-
-// Ensure a sheet exists, create if it doesn't
 async function ensureSheetExists(sheets, spreadsheetId, sheetName) {
-  try {
-    // Get current spreadsheet info to check existing sheets
-    const spreadsheet = await sheets.spreadsheets.get({
-      spreadsheetId: spreadsheetId
-    });
-    
-    // Check if sheet already exists
-    const existingSheet = spreadsheet.data.sheets.find(
-      sheet => sheet.properties.title === sheetName
-    );
-    
-    if (existingSheet) {
-      console.log(`✅ Sheet "${sheetName}" already exists`);
-      return existingSheet.properties.sheetId;
-    }
-    
-    // Create the sheet if it doesn't exist
-    console.log(`📋 Creating new sheet: "${sheetName}"`);
-    const addSheetResponse = await sheets.spreadsheets.batchUpdate({
-      spreadsheetId,
-      resource: {
-        requests: [
-          {
-            addSheet: {
-              properties: {
-                title: sheetName
-              }
-            }
-          }
-        ]
-      }
-    });
-    
-    const newSheetId = addSheetResponse.data.replies[0].addSheet.properties.sheetId;
-    console.log(`✅ Sheet "${sheetName}" created with ID: ${newSheetId}`);
-    return newSheetId;
-    
-  } catch (error) {
-    console.error(`❌ Failed to ensure sheet "${sheetName}" exists:`, error);
-    throw error;
-  }
+  const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
+  const existing = spreadsheet.data.sheets.find(s => s.properties.title === sheetName);
+  if (existing) return existing.properties.sheetId;
+
+  const addRes = await sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    resource: { requests: [{ addSheet: { properties: { title: sheetName } } }] }
+  });
+  return addRes.data.replies[0].addSheet.properties.sheetId;
 }
 
-// Format headers with bold text and background color
-async function formatSheetHeaders(sheets, spreadsheetId, sheetName, range) {
-  try {
-    console.log(`🎨 Formatting headers for ${sheetName}...`);
-    
-    // Get sheet ID
-    const sheetResponse = await sheets.spreadsheets.get({
-      spreadsheetId,
-      fields: 'sheets.properties'
-    });
-    
-    const sheet = sheetResponse.data.sheets.find(s => s.properties.title === sheetName);
-    if (!sheet) {
-      throw new Error(`Sheet "${sheetName}" not found`);
-    }
-    
-    const sheetId = sheet.properties.sheetId;
-    
-    // Format headers with bold text and blue background
-    await sheets.spreadsheets.batchUpdate({
-      spreadsheetId,
-      resource: {
-        requests: [
-          {
-            repeatCell: {
-              range: {
-                sheetId: sheetId,
-                startRowIndex: 0,
-                endRowIndex: 1,
-                startColumnIndex: 0,
-                endColumnIndex: 4
-              },
-              cell: {
-                userEnteredFormat: {
-                  backgroundColor: {
-                    red: 0.8,
-                    green: 0.9,
-                    blue: 1.0
-                  },
-                  textFormat: {
-                    bold: true,
-                    fontSize: 12
-                  },
-                  horizontalAlignment: 'CENTER',
-                  verticalAlignment: 'MIDDLE'
-                }
-              },
-              fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)'
-            }
-          }
-        ]
-      }
-    });
-    
-    console.log(`✅ Headers formatted for ${sheetName}`);
-  } catch (error) {
-    console.error(`❌ Failed to format headers for ${sheetName}:`, error);
-    throw error;
-  }
+async function ensureHeaders(sheets, spreadsheetId, sheetName, headers) {
+  const existing = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `${sheetName}!A1:Z1`
+  });
+  const existingHeaders = (existing.data.values || [[]])[0];
+  if (existingHeaders.join(',') === headers.join(',')) return;
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `${sheetName}!A1`,
+    valueInputOption: 'USER_ENTERED',
+    resource: { values: [headers] }
+  });
 }
 
-// Freeze the top row
-async function freezeTopRow(sheets, spreadsheetId, sheetName) {
-  try {
-    console.log(`❄️ Freezing top row for ${sheetName}...`);
-    
-    // Get sheet ID
-    const sheetResponse = await sheets.spreadsheets.get({
-      spreadsheetId,
-      fields: 'sheets.properties'
-    });
-    
-    const sheet = sheetResponse.data.sheets.find(s => s.properties.title === sheetName);
-    if (!sheet) {
-      throw new Error(`Sheet "${sheetName}" not found`);
-    }
-    
-    const sheetId = sheet.properties.sheetId;
-    
-    // Freeze the first row
-    await sheets.spreadsheets.batchUpdate({
-      spreadsheetId,
-      resource: {
-        requests: [
-          {
-            updateSheetProperties: {
-              properties: {
-                sheetId: sheetId,
-                gridProperties: {
-                  frozenRowCount: 1
-                }
-              },
-              fields: 'gridProperties.frozenRowCount'
-            }
-          }
-        ]
-      }
-    });
-    
-    console.log(`✅ Top row frozen for ${sheetName}`);
-  } catch (error) {
-    console.error(`❌ Failed to freeze top row for ${sheetName}:`, error);
-    throw error;
-  }
-}
-
-// Main Vercel function handler
+// Main handler
 module.exports = async function handler(req, res) {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    Object.entries(corsHeaders).forEach(([k, v]) => res.setHeader(k, v));
     return res.status(200).json({ message: 'OK' });
   }
-
-  // Set CORS headers
-  Object.entries(corsHeaders).forEach(([key, value]) => {
-    res.setHeader(key, value);
-  });
+  Object.entries(corsHeaders).forEach(([k, v]) => res.setHeader(k, v));
 
   try {
-    const { method, body, query } = req;
-    const { action } = query;
-
-    console.log(`📡 API Request: ${method} /api/sheets?action=${action}`);
-
-    // Validate request method based on action
+    const { action } = req.query;
     const getActions = ['test', 'debug', 'initialize', 'update-headers'];
-    const isGetAction = getActions.includes(action);
-    
-    if ((isGetAction && method !== 'GET') || 
-        (!isGetAction && method !== 'POST')) {
-      return res.status(405).json({ 
-        success: false, 
-        error: `Method not allowed. Use ${isGetAction ? 'GET' : 'POST'} for this action.` 
-      });
+    const expectedMethod = getActions.includes(action) ? 'GET' : 'POST';
+    if (req.method !== expectedMethod) {
+      return res.status(405).json({ success: false, error: `Use ${expectedMethod} for this action.` });
     }
 
-    // Initialize Google Sheets
     const sheets = await initializeGoogleSheets();
     const spreadsheetId = process.env.REACT_APP_GOOGLE_SPREADSHEET_ID;
+    if (!spreadsheetId) throw new Error('Missing REACT_APP_GOOGLE_SPREADSHEET_ID');
 
-    if (!spreadsheetId) {
-      throw new Error('Missing REACT_APP_GOOGLE_SPREADSHEET_ID environment variable');
-    }
-
-    // Route to appropriate handler based on action
     switch (action) {
-      case 'checkin':
-        return await handleCheckinData(sheets, spreadsheetId, body, res);
-      
-      case 'preparer':
-        return await handlePreparerData(sheets, spreadsheetId, body, res);
-      
-      case 'test':
-        return await handleTestConnection(sheets, spreadsheetId, res);
-      
-      case 'debug':
-        return await handleDebugInfo(sheets, spreadsheetId, res);
-        
-      case 'initialize':
-        return await handleInitializeSheets(sheets, spreadsheetId, res);
-      
-      case 'update-headers':
-        return await handleUpdateHeaders(sheets, spreadsheetId, res);
-      
+      case 'checkin':   return await handleCheckin(sheets, spreadsheetId, req.body, res);
+      case 'preparer':  return await handlePreparer(sheets, spreadsheetId, req.body, res);
+      case 'test':      return await handleTest(sheets, spreadsheetId, res);
+      case 'debug':     return await handleDebug(sheets, spreadsheetId, res);
+      case 'initialize': return await handleInitialize(sheets, spreadsheetId, res);
+      case 'update-headers': return await handleUpdateHeaders(sheets, spreadsheetId, res);
       default:
-        return res.status(400).json({
-          success: false,
-          error: 'Invalid action. Use: checkin, preparer, test, debug, initialize, or update-headers'
-        });
+        return res.status(400).json({ success: false, error: 'Invalid action.' });
     }
-
   } catch (error) {
-    console.error('❌ API Error:', error);
-    return res.status(500).json({
-      success: false,
-      error: error.message || 'Internal server error',
-      timestamp: new Date().toISOString()
-    });
+    console.error('API Error:', error.message);
+    return res.status(500).json({ success: false, error: error.message });
   }
+};
+
+// Check-in: append to "Clients" tab with duplicate-email guard
+async function handleCheckin(sheets, spreadsheetId, body, res) {
+  const { name, phone, email } = body || {};
+  if (!name || !phone || !email) {
+    return res.status(400).json({ success: false, error: 'Missing required fields: name, phone, email' });
+  }
+
+  await ensureSheetExists(sheets, spreadsheetId, 'Clients');
+  await ensureHeaders(sheets, spreadsheetId, 'Clients', ['Timestamp', 'Name', 'Phone', 'Email']);
+
+  // Duplicate check by email
+  const existing = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: 'Clients!D2:D'
+  });
+  const emails = (existing.data.values || []).flat().map(e => e.toLowerCase());
+  if (emails.includes(email.toLowerCase())) {
+    return res.status(200).json({ success: true, duplicate: true, message: 'Duplicate email — skipped' });
+  }
+
+  const rowData = [new Date().toISOString(), name, phone, email];
+  await sheets.spreadsheets.values.append({
+    spreadsheetId,
+    range: 'Clients!A2:D',
+    valueInputOption: 'USER_ENTERED',
+    resource: { values: [rowData] }
+  });
+
+  return res.status(200).json({ success: true, message: 'Client saved to Clients tab' });
 }
 
-// Handle client check-in data
-async function handleCheckinData(sheets, spreadsheetId, customerData, res) {
-  try {
-    console.log('📊 Processing check-in data for Google Sheets:', customerData);
+// Preparer assignment: append to "Service Log" tab
+async function handlePreparer(sheets, spreadsheetId, body, res) {
+  const { preparerName, clientName } = body || {};
+  if (!preparerName || !clientName) {
+    return res.status(400).json({ success: false, error: 'Missing required fields: preparerName, clientName' });
+  }
 
-    // Validate required fields
-    const required = ['ticketNumber', 'name', 'phone', 'email'];
-    for (const field of required) {
-      if (!customerData[field]) {
-        throw new Error(`Missing required field: ${field}`);
-      }
+  await ensureSheetExists(sheets, spreadsheetId, 'Service Log');
+  await ensureHeaders(sheets, spreadsheetId, 'Service Log', ['Timestamp', 'Tax Preparer', 'Client Name']);
+
+  const rowData = [new Date().toISOString(), preparerName, clientName];
+  await sheets.spreadsheets.values.append({
+    spreadsheetId,
+    range: 'Service Log!A2:C',
+    valueInputOption: 'USER_ENTERED',
+    resource: { values: [rowData] }
+  });
+
+  return res.status(200).json({ success: true, message: 'Assignment logged to Service Log tab' });
+}
+
+// Test connection
+async function handleTest(sheets, spreadsheetId, res) {
+  const response = await sheets.spreadsheets.get({
+    spreadsheetId,
+    fields: 'properties.title,sheets.properties.title'
+  });
+  return res.status(200).json({
+    success: true,
+    data: {
+      title: response.data.properties.title,
+      sheets: response.data.sheets.map(s => s.properties.title),
+      spreadsheetId
     }
-
-    // Prepare row data for Client Database sheet with timestamp first
-    const checkinTimestamp = customerData.checkedInAt || new Date().toISOString();
-    const rowData = [
-      checkinTimestamp,                    // A: Timestamp (for check-in order)
-      customerData.name,                   // B: Name  
-      customerData.phone,                  // C: Phone
-      customerData.email                   // D: Email
-    ];
-
-    // Append data to Client Database sheet (starts from row 2, after headers)
-    const response = await sheets.spreadsheets.values.append({
-      spreadsheetId,
-      range: 'Client Database!A2:D',
-      valueInputOption: 'USER_ENTERED',
-      resource: {
-        values: [rowData]
-      }
-    });
-
-    console.log('✅ Successfully synced check-in to Google Sheets');
-
-    return res.status(200).json({
-      success: true,
-      message: 'Customer check-in data synced to Google Sheets',
-      data: {
-        updatedCells: response.data.updates?.updatedCells || 0,
-        updatedRange: response.data.updates?.updatedRange || 'Client Database!A:D'
-      },
-      timestamp: new Date().toISOString()
-    });
-
-  } catch (error) {
-    console.error('❌ Failed to sync check-in data:', error);
-    throw new Error(`Check-in sync failed: ${error.message}`);
-  }
+  });
 }
 
-// Handle preparer assignment data
-async function handlePreparerData(sheets, spreadsheetId, preparerLogData, res) {
-  try {
-    console.log('📋 Processing preparer assignment for Google Sheets:', preparerLogData);
-
-    // Validate required fields
-    const required = ['timestamp', 'clientName', 'preparerName'];
-    for (const field of required) {
-      if (!preparerLogData[field]) {
-        throw new Error(`Missing required field: ${field}`);
-      }
-    }
-
-    // Format status with appropriate symbol
-    const status = preparerLogData.status || 'pending';
-    const statusSymbol = status === 'completed' ? '✅' : '❌';
-
-    // Prepare row data for ServiceLog sheet with status
-    const rowData = [
-      preparerLogData.timestamp,           // A: Completion Time
-      preparerLogData.clientName,          // B: Client Name
-      preparerLogData.preparerName,        // C: Preparer Name
-      statusSymbol                         // D: Status (✅ for completed, ❌ for pending)
-    ];
-
-    // Append data to ServiceLog sheet (starts from row 2, after headers)
-    const response = await sheets.spreadsheets.values.append({
-      spreadsheetId,
-      range: 'ServiceLog!A2:D',
-      valueInputOption: 'USER_ENTERED',
-      resource: {
-        values: [rowData]
-      }
-    });
-
-    console.log('✅ Successfully synced service completion to Google Sheets');
-
-    return res.status(200).json({
-      success: true,
-      message: 'Service completion synced to Google Sheets',
-      data: {
-        updatedCells: response.data.updates?.updatedCells || 0,
-        updatedRange: response.data.updates?.updatedRange || 'ServiceLog!A:D'
-      },
-      timestamp: new Date().toISOString()
-    });
-
-  } catch (error) {
-    console.error('❌ Failed to sync preparer data:', error);
-    throw new Error(`Preparer sync failed: ${error.message}`);
-  }
+// Initialize sheets (ensure both exist with headers)
+async function handleInitialize(sheets, spreadsheetId, res) {
+  await ensureSheetExists(sheets, spreadsheetId, 'Clients');
+  await ensureHeaders(sheets, spreadsheetId, 'Clients', ['Timestamp', 'Name', 'Phone', 'Email']);
+  await ensureSheetExists(sheets, spreadsheetId, 'Service Log');
+  await ensureHeaders(sheets, spreadsheetId, 'Service Log', ['Timestamp', 'Tax Preparer', 'Client Name']);
+  return res.status(200).json({ success: true, message: 'Sheets initialized' });
 }
 
-// Handle sheet initialization
-async function handleInitializeSheets(sheets, spreadsheetId, res) {
-  try {
-    console.log('🔧 Initialize sheets request received');
-    
-    const result = await initializeSheets(sheets, spreadsheetId);
-    
-    return res.status(200).json({
-      success: true,
-      message: 'Sheets successfully initialized with headers and formatting',
-      data: result,
-      timestamp: new Date().toISOString()
-    });
-    
-  } catch (error) {
-    console.error('❌ Failed to initialize sheets:', error);
-    throw new Error(`Sheet initialization failed: ${error.message}`);
-  }
-}
-
-// Handle direct header updates without clearing data
+// Update headers only
 async function handleUpdateHeaders(sheets, spreadsheetId, res) {
-  try {
-    console.log('🔧 Update headers request received');
-    
-    // Update Client Database headers directly
-    console.log('📊 Updating Client Database headers...');
-    const clientHeaders = ['Timestamp', 'Name', 'Phone', 'Email'];
-    await sheets.spreadsheets.values.update({
-      spreadsheetId,
-      range: 'Client Database!A1:D1',
-      valueInputOption: 'USER_ENTERED',
-      resource: {
-        values: [clientHeaders]
-      }
-    });
-    
-    // Format and freeze Client Database headers
-    await formatSheetHeaders(sheets, spreadsheetId, 'Client Database', 'A1:D1');
-    await freezeTopRow(sheets, spreadsheetId, 'Client Database');
-    
-    // Update ServiceLog headers directly with status column
-    console.log('📋 Updating ServiceLog headers...');
-    const completionHeaders = ['Completion Time', 'Client Name', 'Preparer Name', 'Status'];
-    await sheets.spreadsheets.values.update({
-      spreadsheetId,
-      range: 'ServiceLog!A1:D1',
-      valueInputOption: 'USER_ENTERED',
-      resource: {
-        values: [completionHeaders]
-      }
-    });
-    
-    // Format and freeze ServiceLog headers
-    await formatSheetHeaders(sheets, spreadsheetId, 'ServiceLog', 'A1:D1');
-    await freezeTopRow(sheets, spreadsheetId, 'ServiceLog');
-    
-    return res.status(200).json({
-      success: true,
-      message: 'Headers successfully updated with new structure',
-      data: {
-        clientDatabaseHeaders: clientHeaders,
-        preparerLogHeaders: completionHeaders
-      },
-      timestamp: new Date().toISOString()
-    });
-    
-  } catch (error) {
-    console.error('❌ Failed to update headers:', error);
-    throw new Error(`Header update failed: ${error.message}`);
-  }
+  await ensureHeaders(sheets, spreadsheetId, 'Clients', ['Timestamp', 'Name', 'Phone', 'Email']);
+  await ensureHeaders(sheets, spreadsheetId, 'Service Log', ['Timestamp', 'Tax Preparer', 'Client Name']);
+  return res.status(200).json({ success: true, message: 'Headers updated' });
 }
 
-// Test Google Sheets connection
-async function handleTestConnection(sheets, spreadsheetId, res) {
+// Debug info
+async function handleDebug(sheets, spreadsheetId, res) {
+  const envCheck = {
+    GOOGLE_PRIVATE_KEY: { exists: !!process.env.GOOGLE_PRIVATE_KEY, length: process.env.GOOGLE_PRIVATE_KEY?.length || 0 },
+    GOOGLE_CLIENT_EMAIL: { exists: !!process.env.GOOGLE_CLIENT_EMAIL, value: process.env.GOOGLE_CLIENT_EMAIL || 'NOT SET' },
+    GOOGLE_PROJECT_ID: { exists: !!process.env.GOOGLE_PROJECT_ID, value: process.env.GOOGLE_PROJECT_ID || 'NOT SET' },
+    REACT_APP_GOOGLE_SPREADSHEET_ID: { exists: !!process.env.REACT_APP_GOOGLE_SPREADSHEET_ID }
+  };
+
+  let connectionTest = null;
   try {
-    console.log('🧪 Testing Google Sheets connection...');
-
-    // Try to read the spreadsheet metadata
-    const response = await sheets.spreadsheets.get({
-      spreadsheetId,
-      fields: 'properties.title,sheets.properties.title'
-    });
-
-    console.log('✅ Google Sheets connection test successful');
-
-    return res.status(200).json({
-      success: true,
-      message: 'Google Sheets connection successful',
-      data: {
-        title: response.data.properties.title,
-        sheets: response.data.sheets.map(sheet => sheet.properties.title),
-        spreadsheetId: spreadsheetId
-      },
-      timestamp: new Date().toISOString()
-    });
-
-  } catch (error) {
-    console.error('❌ Google Sheets connection test failed:', error);
-    throw new Error(`Connection test failed: ${error.message}`);
+    const r = await sheets.spreadsheets.get({ spreadsheetId, fields: 'properties.title,sheets.properties.title' });
+    connectionTest = { success: true, title: r.data.properties.title, sheets: r.data.sheets.map(s => s.properties.title) };
+  } catch (e) {
+    connectionTest = { success: false, error: e.message };
   }
-}
 
-// Comprehensive debug information handler
-async function handleDebugInfo(sheets, spreadsheetId, res) {
-  try {
-    console.log('🔍 Debug endpoint called');
-
-    // Environment variables check
-    const envCheck = {
-      GOOGLE_PRIVATE_KEY: {
-        exists: !!process.env.GOOGLE_PRIVATE_KEY,
-        length: process.env.GOOGLE_PRIVATE_KEY?.length || 0,
-        startsCorrectly: process.env.GOOGLE_PRIVATE_KEY?.startsWith('-----BEGIN PRIVATE KEY-----') || false,
-        endsCorrectly: process.env.GOOGLE_PRIVATE_KEY?.includes('-----END PRIVATE KEY-----') || false,
-        hasNewlines: process.env.GOOGLE_PRIVATE_KEY?.includes('\\n') || false
-      },
-      GOOGLE_CLIENT_EMAIL: {
-        exists: !!process.env.GOOGLE_CLIENT_EMAIL,
-        value: process.env.GOOGLE_CLIENT_EMAIL || 'NOT SET',
-        isValidEmail: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(process.env.GOOGLE_CLIENT_EMAIL || '')
-      },
-      GOOGLE_PROJECT_ID: {
-        exists: !!process.env.GOOGLE_PROJECT_ID,
-        value: process.env.GOOGLE_PROJECT_ID || 'NOT SET'
-      },
-      REACT_APP_GOOGLE_SPREADSHEET_ID: {
-        exists: !!process.env.REACT_APP_GOOGLE_SPREADSHEET_ID,
-        value: process.env.REACT_APP_GOOGLE_SPREADSHEET_ID || 'NOT SET',
-        length: process.env.REACT_APP_GOOGLE_SPREADSHEET_ID?.length || 0
-      }
-    };
-
-    // Test Google Sheets API connection
-    let connectionTest = null;
-    let authTest = null;
-    let sheetAccessTest = null;
-
-    try {
-      // Test basic connection
-      console.log('🔐 Testing Google API authentication...');
-      const response = await sheets.spreadsheets.get({
-        spreadsheetId,
-        fields: 'properties.title,sheets.properties.title'
-      });
-      
-      connectionTest = {
-        success: true,
-        spreadsheetTitle: response.data.properties.title,
-        sheets: response.data.sheets.map(sheet => sheet.properties.title)
-      };
-
-      // Test read access
-      console.log('📊 Testing sheet read access...');
-      const valuesResponse = await sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: 'Client Database!A1:D1'
-      });
-      
-      sheetAccessTest = {
-        success: true,
-        message: 'Sheet read access successful',
-        readTest: {
-          range: 'Client Database!A1:D1',
-          values: valuesResponse.data.values || []
-        }
-      };
-
-      authTest = {
-        success: true,
-        message: 'All authentication tests passed'
-      };
-
-    } catch (apiError) {
-      authTest = {
-        success: false,
-        error: apiError.message,
-        code: apiError.code,
-        status: apiError.status
-      };
-    }
-
-    return res.status(200).json({
-      success: true,
-      message: 'Debug information collected',
-      debug: {
-        timestamp: new Date().toISOString(),
-        environment: process.env.NODE_ENV || 'development',
-        environmentVariables: envCheck,
-        googleSheetsConnection: connectionTest,
-        authenticationTest: authTest,
-        sheetAccessTest: sheetAccessTest,
-        allEnvKeys: Object.keys(process.env).filter(key => 
-          key.includes('GOOGLE') || 
-          key.includes('REACT_APP') || 
-          key.includes('VERCEL')
-        ).sort()
-      }
-    });
-
-  } catch (error) {
-    console.error('❌ Debug endpoint error:', error);
-    return res.status(500).json({
-      success: false,
-      error: error.message,
-      debug: {
-        timestamp: new Date().toISOString(),
-        environment: process.env.NODE_ENV || 'development',
-        environmentVariables: {
-          GOOGLE_PRIVATE_KEY: { exists: !!process.env.GOOGLE_PRIVATE_KEY },
-          GOOGLE_CLIENT_EMAIL: { exists: !!process.env.GOOGLE_CLIENT_EMAIL },
-          GOOGLE_PROJECT_ID: { exists: !!process.env.GOOGLE_PROJECT_ID },
-          REACT_APP_GOOGLE_SPREADSHEET_ID: { exists: !!process.env.REACT_APP_GOOGLE_SPREADSHEET_ID }
-        }
-      }
-    });
-  }
+  return res.status(200).json({ success: true, debug: { environmentVariables: envCheck, connectionTest } });
 }

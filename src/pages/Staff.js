@@ -3,141 +3,121 @@ import { useQueue } from '../context/QueueContext';
 import Header from '../components/Header';
 
 const Staff = () => {
-  const { 
+  const {
     preparers,
     assignToPreparer,
     completeService,
-    getWaitingCustomers, 
+    getWaitingCustomers,
     getServedCustomers,
-    getPreparerList
+    getPreparerList,
   } = useQueue();
-  // const [showServed, setShowServed] = useState(false); // Removed unused state
   const [syncing, setSyncing] = useState({});
-  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [, forceRefresh] = useState(0);
 
   const waitingCustomers = getWaitingCustomers();
   const servedCustomers = getServedCustomers();
   const preparerNames = getPreparerList();
-  
-  console.log('👩‍💼 Staff Dashboard: Waiting customers:', waitingCustomers.length, waitingCustomers.map(c => c.name));
-  console.log('👩‍💼 Staff Dashboard: Served customers:', servedCustomers.length);
-  console.log('👩‍💼 Staff Dashboard: Preparers status:', Object.entries(preparers).map(([name, customer]) => ({ [name]: customer?.name || 'Available' })));
 
   // Auto-refresh every 3 seconds
   useEffect(() => {
-    if (!autoRefresh) return;
-    
-    const timer = setInterval(() => {
-      // Force re-render by updating a timestamp
-      setAutoRefresh(prev => prev);
-    }, 3000);
-
+    const timer = setInterval(() => forceRefresh(n => n + 1), 3000);
     return () => clearInterval(timer);
-  }, [autoRefresh]);
+  }, []);
 
   const handleAssignToPreparer = async (preparerName) => {
     if (waitingCustomers.length === 0) return;
-    
+    const nextClient = waitingCustomers[0];
+
     setSyncing(prev => ({ ...prev, [preparerName]: true }));
-    
     try {
-      // Assign customer to preparer (no Google Sheets logging - only at completion)
       await assignToPreparer(preparerName);
-      console.log(`✅ Customer assigned to ${preparerName} - will log to sheets when service completed`);
+
+      // Fire-and-forget log to Service Log tab
+      fetch('/api/sheets?action=preparer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ preparerName, clientName: nextClient.name }),
+      }).catch(() => {});
     } catch (error) {
-      console.error('❌ Error assigning customer:', error);
+      console.error('Error assigning customer:', error);
     } finally {
       setSyncing(prev => ({ ...prev, [preparerName]: false }));
     }
   };
 
-  const handleCompleteService = async (preparerName) => {
-    const currentCustomer = preparers[preparerName];
-    if (!currentCustomer) return;
-    
-    // ONLY update local state - NO GOOGLE SHEETS CALLS AT ALL
+  const handleCompleteService = (preparerName) => {
     completeService(preparerName, 'completed');
-    console.log(`✅ Service completed - LOCAL STATE ONLY`);
   };
 
-  const handlePendingService = async (preparerName) => {
-    const currentCustomer = preparers[preparerName];
-    if (!currentCustomer) return;
-    
-    // ONLY update local state - NO GOOGLE SHEETS CALLS AT ALL
+  const handlePendingService = (preparerName) => {
     completeService(preparerName, 'pending');
-    console.log(`⏸️ Service pending - LOCAL STATE ONLY`);
   };
 
   const formatTime = (date) => {
-    return new Date(date).toLocaleString();
+    if (!date) return '—';
+    return new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   return (
     <div className="page staff-dashboard">
-      <Header title="Staff Dashboard" />
+      <Header />
       <main className="main-content">
         <div className="dashboard-content">
-          
+
           {/* Preparer Stations */}
-          <div className="preparer-stations">
-            <h2>Tax Preparers</h2>
+          <section className="preparer-stations">
+            <h2 className="section-heading">Tax Preparers</h2>
             <div className="preparers-grid">
               {preparerNames.map((preparerName) => {
                 const currentCustomer = preparers[preparerName];
                 const isAssigning = syncing[preparerName];
-                
+                const isBusy = !!currentCustomer;
+
                 return (
-                  <div key={preparerName} className="preparer-station">
-                    <div className="preparer-header">
-                      <h3>{preparerName}</h3>
-                      <div className="preparer-status">
-                        {currentCustomer ? (
-                          <span className="status-busy">Busy</span>
-                        ) : (
-                          <span className="status-available">Available</span>
-                        )}
-                      </div>
+                  <div key={preparerName} className={`preparer-station${isBusy ? ' station-busy' : ' station-available'}`}>
+                    <div className="station-top-bar" />
+                    <div className="station-header">
+                      <h3 className="station-name">{preparerName}</h3>
+                      <span className={`status-badge${isBusy ? ' badge-busy' : ' badge-available'}`}>
+                        <span className="badge-dot" />
+                        {isBusy ? 'Busy' : 'Available'}
+                      </span>
                     </div>
-                    
-                    <div className="preparer-content">
+
+                    <div className="station-body">
                       {currentCustomer ? (
-                        <div className="current-client">
-                          <div className="customer-card serving">
-                            <div className="customer-header">
-                              <span className="ticket-number">{currentCustomer.ticketNumber}</span>
-                              <span className="filing-status">{currentCustomer.filingStatus}</span>
-                            </div>
-                            <div className="customer-details">
-                              <p><strong>{currentCustomer.name}</strong></p>
-                              <p>{currentCustomer.phone}</p>
-                              <p className="timestamp">Started: {formatTime(currentCustomer.servedAt || currentCustomer.timestamp)}</p>
+                        <>
+                          <div className="serving-client-card">
+                            <div className="client-ticket">{currentCustomer.ticketNumber}</div>
+                            <div className="client-name">{currentCustomer.name}</div>
+                            <div className="client-meta">
+                              <span className="filing-badge">{currentCustomer.filingStatus}</span>
+                              <span className="client-time">Since {formatTime(currentCustomer.servedAt || currentCustomer.timestamp)}</span>
                             </div>
                           </div>
                           <div className="service-actions">
-                            <button 
-                              className="btn-primary complete-btn"
-                              onClick={() => handleCompleteService(preparerName)}
-                            >
-                              ✅ Complete Service
+                            <button className="btn-complete" onClick={() => handleCompleteService(preparerName)}>
+                              Complete
                             </button>
-                            <button 
-                              className="btn-secondary pending-btn"
-                              onClick={() => handlePendingService(preparerName)}
-                            >
-                              ⏸️ Mark Pending
+                            <button className="btn-pending" onClick={() => handlePendingService(preparerName)}>
+                              Pending
                             </button>
                           </div>
-                        </div>
+                        </>
                       ) : (
                         <div className="no-client">
-                          <p>No client assigned</p>
-                          <button 
-                            className="btn-primary assign-btn"
+                          <div className="no-client-icon">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.35">
+                              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+                            </svg>
+                          </div>
+                          <p className="no-client-text">No client assigned</p>
+                          <button
+                            className="btn-serve"
                             onClick={() => handleAssignToPreparer(preparerName)}
                             disabled={waitingCustomers.length === 0 || isAssigning}
                           >
-                            {isAssigning ? 'Assigning...' : 'Serve Next'}
+                            {isAssigning ? 'Assigning…' : 'Serve Next'}
                           </button>
                         </div>
                       )}
@@ -146,43 +126,43 @@ const Staff = () => {
                 );
               })}
             </div>
-          </div>
+          </section>
 
-          {/* Next 3 Waiting Customers */}
-          <div className="next-customers-section">
-            <h3>Next 3 Waiting Customers</h3>
+          {/* Queue Preview */}
+          <section className="queue-preview-section">
+            <h3 className="section-heading-sm">Next in Queue</h3>
             {waitingCustomers.length > 0 ? (
-              <div className="next-customers-list">
-                {waitingCustomers.slice(0, 3).map((customer, index) => (
-                  <div key={customer.id} className="next-customer-card">
-                    <div className="customer-info">
-                      <span className="queue-position">#{index + 1}</span>
-                      <span className="customer-name">{customer.name}</span>
-                      <span className="ticket-number">{customer.ticketNumber}</span>
-                      <span className="filing-status">{customer.filingStatus}</span>
-                    </div>
-                    <div className="wait-time">
-                      Wait: ~{((index + 1) * 15)} min
-                    </div>
+              <div className="queue-preview-row">
+                {waitingCustomers.slice(0, 4).map((customer, index) => (
+                  <div key={customer.id} className="queue-mini-card">
+                    <span className="mini-position">#{index + 1}</span>
+                    <span className="mini-name">{customer.name}</span>
+                    <span className="mini-ticket">{customer.ticketNumber}</span>
                   </div>
                 ))}
+                {waitingCustomers.length > 4 && (
+                  <div className="queue-mini-card queue-overflow">
+                    +{waitingCustomers.length - 4} more
+                  </div>
+                )}
               </div>
             ) : (
-              <p className="no-waiting">No customers waiting</p>
+              <p className="no-waiting">No customers currently waiting</p>
             )}
-          </div>
+          </section>
 
-          {/* Auto-refresh indicator */}
+          {/* Footer stats */}
           <div className="dashboard-footer">
             <div className="auto-refresh-indicator">
-              <span className="refresh-dot"></span>
-              Auto-refreshing every 3 seconds
+              <span className="refresh-dot" />
+              Live — auto-refreshing
             </div>
             <div className="dashboard-stats">
-              <span>Waiting: {waitingCustomers.length}</span>
-              <span>Served Today: {servedCustomers.length}</span>
+              <span className="stat-pill">Waiting: <strong>{waitingCustomers.length}</strong></span>
+              <span className="stat-pill">Served Today: <strong>{servedCustomers.length}</strong></span>
             </div>
           </div>
+
         </div>
       </main>
     </div>
