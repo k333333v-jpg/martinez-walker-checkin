@@ -110,7 +110,7 @@ const CheckIn = () => {
 
   return (
     <div className="page">
-      <Header />
+      <Header hideNav />
       <main className="main-content">
         <div className="form-container">
           <div className="form-card">
