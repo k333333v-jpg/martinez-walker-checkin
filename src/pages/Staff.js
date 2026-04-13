@@ -12,17 +12,10 @@ const Staff = () => {
     getPreparerList,
   } = useQueue();
   const [syncing, setSyncing] = useState({});
-  const [, forceRefresh] = useState(0);
 
   const waitingCustomers = getWaitingCustomers();
   const servedCustomers = getServedCustomers();
   const preparerNames = getPreparerList();
-
-  // Auto-refresh every 3 seconds
-  useEffect(() => {
-    const timer = setInterval(() => forceRefresh(n => n + 1), 3000);
-    return () => clearInterval(timer);
-  }, []);
 
   const handleAssignToPreparer = async (preparerName) => {
     if (waitingCustomers.length === 0) return;
@@ -31,13 +24,6 @@ const Staff = () => {
     setSyncing(prev => ({ ...prev, [preparerName]: true }));
     try {
       await assignToPreparer(preparerName);
-
-      // Fire-and-forget log to Service Log tab
-      fetch('/api/sheets?action=preparer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ preparerName, clientName: nextClient.name }),
-      }).catch(() => {});
     } catch (error) {
       console.error('Error assigning customer:', error);
     } finally {
@@ -46,11 +32,27 @@ const Staff = () => {
   };
 
   const handleCompleteService = (preparerName) => {
+    const current = preparers[preparerName];
     completeService(preparerName, 'completed');
+    if (current) {
+      fetch('/api/sheets?action=preparer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ preparerName, clientName: current.name, status: 'Completed' }),
+      }).catch(() => {});
+    }
   };
 
   const handlePendingService = (preparerName) => {
+    const current = preparers[preparerName];
     completeService(preparerName, 'pending');
+    if (current) {
+      fetch('/api/sheets?action=preparer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ preparerName, clientName: current.name, status: 'Pending' }),
+      }).catch(() => {});
+    }
   };
 
   const formatTime = (date) => {

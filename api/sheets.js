@@ -129,15 +129,15 @@ async function handleCheckin(sheets, spreadsheetId, body, res) {
 
 // Preparer assignment: append to "Service Log" tab
 async function handlePreparer(sheets, spreadsheetId, body, res) {
-  const { preparerName, clientName } = body || {};
+  const { preparerName, clientName, status } = body || {};
   if (!preparerName || !clientName) {
     return res.status(400).json({ success: false, error: 'Missing required fields: preparerName, clientName' });
   }
 
   await ensureSheetExists(sheets, spreadsheetId, 'Service Log');
-  await ensureHeaders(sheets, spreadsheetId, 'Service Log', ['Timestamp', 'Tax Preparer', 'Client Name']);
+  await ensureHeaders(sheets, spreadsheetId, 'Service Log', ['Timestamp', 'Tax Preparer', 'Client Name', 'Status']);
 
-  const rowData = [new Date().toISOString(), preparerName, clientName];
+  const rowData = [new Date().toISOString(), preparerName, clientName, status || 'Completed'];
   await sheets.spreadsheets.values.append({
     spreadsheetId,
     range: 'Service Log!A2:C',
@@ -169,14 +169,14 @@ async function handleInitialize(sheets, spreadsheetId, res) {
   await ensureSheetExists(sheets, spreadsheetId, 'Clients');
   await ensureHeaders(sheets, spreadsheetId, 'Clients', ['Timestamp', 'Name', 'Phone', 'Email']);
   await ensureSheetExists(sheets, spreadsheetId, 'Service Log');
-  await ensureHeaders(sheets, spreadsheetId, 'Service Log', ['Timestamp', 'Tax Preparer', 'Client Name']);
+  await ensureHeaders(sheets, spreadsheetId, 'Service Log', ['Timestamp', 'Tax Preparer', 'Client Name', 'Status']);
   return res.status(200).json({ success: true, message: 'Sheets initialized' });
 }
 
 // Update headers only
 async function handleUpdateHeaders(sheets, spreadsheetId, res) {
   await ensureHeaders(sheets, spreadsheetId, 'Clients', ['Timestamp', 'Name', 'Phone', 'Email']);
-  await ensureHeaders(sheets, spreadsheetId, 'Service Log', ['Timestamp', 'Tax Preparer', 'Client Name']);
+  await ensureHeaders(sheets, spreadsheetId, 'Service Log', ['Timestamp', 'Tax Preparer', 'Client Name', 'Status']);
   return res.status(200).json({ success: true, message: 'Headers updated' });
 }
 
